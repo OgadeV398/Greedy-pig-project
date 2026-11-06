@@ -15,7 +15,7 @@ export default function Home() {
         <div className="flex gap-4 flex-col">
           {/* <Link
             to={`/play-computer`}
-            className=" sec-font text-xl rounded px-8 py-4 bg-[#d30cbcc0] font-bold duration-500 skew-x-6 hover:skew-x-0 hover:scale-95 hover:bg-[#d30cbc] "
+            className=" sec-font text-xl rounded px-8 py-4 bg-[#d30cbcc0] font-bold duration-500 skew-x-6 hover:skew-x-0 hover:scale-95 "
           >
             Play Computer
           </Link>
@@ -30,6 +30,12 @@ export default function Home() {
             className=" sec-font text-xl rounded px-8 py-4 bg-[#d30cbcc0] font-bold duration-500 skew-x-6 hover:bg-[#d30cbc] hover:skew-x-0 hover:scale-95 "
           >
             Play Friends (Live)
+          </Link>
+          <Link
+            to={`/leaderboard`}
+            className=" sec-font text-xl rounded px-8 py-4 bg-[#d30cbcc0] font-bold duration-500 -skew-x-6 hover:bg-[#d30cbc] hover:skew-x-0 hover:scale-95 "
+          >
+            Leaderboard
           </Link>
         </div>
       </div>

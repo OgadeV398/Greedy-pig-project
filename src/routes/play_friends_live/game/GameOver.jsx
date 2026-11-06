@@ -1,6 +1,7 @@
 import React, { useRef, useState, useEffect } from "react";
 import Confetti from "react-confetti";
 import { Link } from "react-router-dom";
+import { recordMatchResult } from "../../../services/gameService"; // Adjust relative path if needed
 
 function GameOver({ playerData, currentPlayer, setIsContinue }) {
   const [leaderBoard, setLeaderBoard] = useState(playerData);
@@ -8,9 +9,8 @@ function GameOver({ playerData, currentPlayer, setIsContinue }) {
   const windowHeight = useRef(window.innerHeight);
 
   useEffect(() => {
-    setIsContinue(false)
-  }, [])
-
+    setIsContinue(false);
+  }, []);
 
   useEffect(() => {
     let newLeaderBoard = [...playerData].sort(
@@ -18,7 +18,18 @@ function GameOver({ playerData, currentPlayer, setIsContinue }) {
         b.total_points + b.running_points - (a.total_points + a.running_points)
     );
     setLeaderBoard(newLeaderBoard);
+
+    // Automatically record match result to Supabase when game over mounts
+    if (newLeaderBoard.length > 0) {
+      const winner = newLeaderBoard[0];
+      const winnerName = winner.name === "" ? winner.tag : winner.name;
+      const winningScore = winner.total_points + winner.running_points;
+      const totalPlayers = playerData.length;
+
+      recordMatchResult(winnerName, winningScore, totalPlayers);
+    }
   }, [playerData, currentPlayer]);
+
   return (
     <div className=" min-h-screen w-screen absolute bg-[#000000c0] flex justify-center items-center  text-white top-0">
       <Confetti width={windowWidth.current} height={windowHeight.current} />
