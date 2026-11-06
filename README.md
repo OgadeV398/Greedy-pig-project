@@ -48,3 +48,65 @@ Because .env files contain private credentials, Git intentionally ignores them (
 Once your dependencies are installed and your .env file is configured, you can launch the local development server:
 
 Look at your terminal output for the local server link (usually http://localhost:5173 or [http://127.0.0.1:5173](http://127.0.0.1:5173)), and open that URL in your web browser to play the game and interact with the database.
+
+Teammates should **never** create tables individually on the Supabase UI without a plan, as uncoordinated schema changes will break other people's code or wipe out existing tables.
+
+Here is the standard, clean workflow for handling new database features without conflicts:
+
+---
+
+### 1. The Core Rule: Centralized Schema Updates
+
+Instead of members clicking around in Supabase to make tables on their own, all database changes follow this simple lifecycle:
+
+1. **Discuss the New Table First:** If a teammate needs a new table (for example, `achievements` or `chat_messages`), they define the table structure in team chat first.
+2. **Append to `schema.sql`:** The new table code is added to the master `schema.sql` file in Git so it is documented for everyone.
+3. **Run the New Block in Supabase:** Execute *only* the new SQL block in the Supabase SQL Editor.
+
+---
+
+### 2. How `CREATE TABLE IF NOT EXISTS` Prevents Conflicts
+
+Because of how we wrote your original SQL queries, existing data will never be overwritten or broken when adding new tables.
+
+Every new table script should be written using `IF NOT EXISTS`. For example, if a teammate needs a table for game settings, they add this to `schema.sql`:
+
+```sql
+-- New feature table added later
+CREATE TABLE IF NOT EXISTS public.game_settings (
+    id SERIAL PRIMARY KEY,
+    player_id INTEGER REFERENCES public.players(id),
+    sound_volume INTEGER DEFAULT 80,
+    theme TEXT DEFAULT 'classic'
+);
+
+```
+
+Because of `IF NOT EXISTS`:
+
+* Running this script will **only** create `game_settings`.
+* It will completely leave your existing `players` and `match_results` tables untouched.
+
+---
+
+### 3. Modifying Existing Tables Safely (Adding Columns)
+
+If a requirement demands adding a new field to an existing table (e.g., adding `avatar_url` to the `players` table), members should **never drop or recreate** the table.
+
+Instead, they use an `ALTER TABLE` statement:
+
+```sql
+-- Safe way to add a column without deleting existing players
+ALTER TABLE public.players 
+ADD COLUMN IF NOT EXISTS avatar_url TEXT DEFAULT 'default_pig.png';
+
+```
+
+---
+
+### 4. Summary of the Team Workflow
+
+* **Step 1:** Member drafts the SQL code for their new table/column locally.
+* **Step 2:** Member pastes the new SQL snippet into the team repository's `schema.sql` file.
+* **Step 3:** Member executes that specific new snippet in the shared Supabase **SQL Editor**.
+* **Step 4:** Member pushes the updated `schema.sql` to GitHub so everyone stays in sync.
