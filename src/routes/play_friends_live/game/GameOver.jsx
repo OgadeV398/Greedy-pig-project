@@ -22,16 +22,16 @@ function GameOver({ playerData, currentPlayer, setIsContinue }) {
     );
     setLeaderBoard(newLeaderBoard);
 
-    // Record match result only once on initial calculation
+    // Record match result only once on initial calculation, passing full playerData
     if (newLeaderBoard.length > 0 && !hasRecordedRef.current) {
       hasRecordedRef.current = true;
       
       const winner = newLeaderBoard[0];
       const winnerName = winner.name === "" ? winner.tag : winner.name;
       const winningScore = winner.total_points + winner.running_points;
-      const totalPlayers = playerData.length;
 
-      recordMatchResult(winnerName, winningScore, totalPlayers);
+      // Pass the full playerData array so all players/opponents are recorded
+      recordMatchResult(winnerName, winningScore, playerData);
     }
   }, [playerData, currentPlayer]);
 

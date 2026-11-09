@@ -1,66 +1,63 @@
 import { supabase } from '../supabaseClient';
 
-/**
- * Record a completed match and update player career stats
- * @param {string} winnerName - Username of the winning player
- * @param {number} winningScore - Final score achieved by the winner
- * @param {number} totalPlayers - Number of participants in the match
- */
-export const recordMatchResult = async (winnerName, winningScore, totalPlayers) => {
+export async function recordMatchResult(winnerName, winningScore, playersList) {
   try {
-    // 1. Insert historical match log
+    const playerNames = playersList.map((p) => 
+      p.name && p.name.trim() !== '' ? p.name : p.tag || 'Player'
+    );
+
+    // 1. Record match result (passing exact integer for players_count and array for all_players)
     const { error: matchError } = await supabase
       .from('match_results')
       .insert([
         {
           winner_name: winnerName,
           winning_score: winningScore,
-          players_count: totalPlayers,
+          players_count: playersList.length, // Integer count
+          all_players: playerNames,           // Array of strings
         },
       ]);
 
-    if (matchError) throw matchError;
-
-    // 2. Check if player already exists in the players table
-    const { data: existingPlayer, error: fetchError } = await supabase
-      .from('players')
-      .select('*')
-      .eq('username', winnerName)
-      .maybeSingle();
-
-    if (fetchError) throw fetchError;
-
-    if (existingPlayer) {
-      // 3a. Update existing player stats
-      const { error: updateError } = await supabase
-        .from('players')
-        .update({
-          total_wins: existingPlayer.total_wins + 1,
-          games_played: existingPlayer.games_played + 1,
-          highest_score: Math.max(existingPlayer.highest_score, winningScore),
-        })
-        .eq('id', existingPlayer.id);
-
-      if (updateError) throw updateError;
-    } else {
-      // 3b. Insert new player profile
-      const { error: insertError } = await supabase
-        .from('players')
-        .insert([
-          {
-            username: winnerName,
-            total_wins: 1,
-            highest_score: winningScore,
-            games_played: 1,
-          },
-        ]);
-
-      if (insertError) throw insertError;
+    if (matchError) {
+      console.error('Match insert error:', matchError);
+      throw matchError;
     }
 
-    return { success: true };
-  } catch (error) {
-    console.error('Error recording match result:', error.message);
-    return { success: false, error: error.message };
+    // 2. Update players table stats for all participants
+    for (const player of playersList) {
+      const username = player.name && player.name.trim() !== '' ? player.name : player.tag || 'Player';
+      const isWinner = username === winnerName;
+      const score = (player.total_points || 0) + (player.running_points || 0);
+
+      const { data: existingPlayer } = await supabase
+        .from('players')
+        .select('*')
+        .eq('username', username)
+        .maybeSingle();
+
+      if (existingPlayer) {
+        await supabase
+          .from('players')
+          .update({
+            total_wins: isWinner ? (existingPlayer.total_wins || 0) + 1 : (existingPlayer.total_wins || 0),
+            games_played: (existingPlayer.games_played || 0) + 1,
+            highest_score: Math.max(existingPlayer.highest_score || 0, score),
+          })
+          .eq('username', username);
+      } else {
+        await supabase
+          .from('players')
+          .insert([
+            {
+              username,
+              total_wins: isWinner ? 1 : 0,
+              games_played: 1,
+              highest_score: score,
+            },
+          ]);
+      }
+    }
+  } catch (err) {
+    console.error('Error saving match result:', err.message || err);
   }
-};
+}
