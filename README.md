@@ -1,5 +1,36 @@
 Welcome to the repository for Greedy Pig, a collaborative web-based push-your-luck dice game built using React, Vite, and Tailwind CSS, powered by a shared Supabase PostgreSQL backend.
 
+# Greedy Pig 🐷
+
+A fast-paced multiplayer dice game built with React, Vite, Tailwind CSS, and Supabase.
+
+## 🚀 Features
+
+- **Local Multiplayer**: Play live with friends.
+- **Global Leaderboard**: Tracks top players by wins and displays recent match history.
+- **Search & Filtering**: Real-time player search and match history filters (by date and player count).
+- **Pagination**: Efficiently load match records in batches.
+
+## 🗄️ Database Setup (Supabase)
+
+### Database Schemas
+
+**`players` Table**
+- `id` (int4, Primary Key)
+- `username` (text, Unique)
+- `total_wins` (int4)
+- `highest_score` (int4)
+- `games_played` (int4)
+- `created_at` (timestamptz)
+
+**`match_results` Table**
+- `id` (int4, Primary Key)
+- `winner_name` (text)
+- `winning_score` (int4)
+- `players_count` (int4)
+- `played_at` (timestamptz)
+
+
 1. Git Pull and NPM Install
 
 To get the project onto your local machine and install all required package dependencies, open your terminal and run the following commands:
@@ -110,3 +141,25 @@ ADD COLUMN IF NOT EXISTS avatar_url TEXT DEFAULT 'default_pig.png';
 * **Step 2:** Member pastes the new SQL snippet into the team repository's `schema.sql` file.
 * **Step 3:** Member executes that specific new snippet in the shared Supabase **SQL Editor**.
 * **Step 4:** Member pushes the updated `schema.sql` to GitHub so everyone stays in sync.
+
+### Row-Level Security (RLS)
+
+Make sure public policies are active in your Supabase project dashboard:
+- **`players`**: `SELECT`, `INSERT`, `UPDATE` policies enabled for public access.
+- **`match_results`**: `SELECT`, `INSERT` policies enabled for public access.
+
+### Mock Testing Data
+
+To seed the database with mock records for local testing, run the SQL script in your Supabase **SQL Editor**:
+
+```sql
+INSERT INTO public.players (username, total_wins, highest_score, games_played)
+VALUES 
+  ('PiggyMaster', 15, 250, 20),
+  ('MuddyKing', 12, 210, 18),
+  ('OinkPro', 9, 185, 15);
+
+INSERT INTO public.match_results (winner_name, winning_score, players_count, played_at)
+VALUES 
+  ('PiggyMaster', 250, 4, NOW() - INTERVAL '1 hour'),
+  ('MuddyKing', 210, 3, NOW() - INTERVAL '3 hours');
