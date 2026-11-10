@@ -1,63 +1,78 @@
-import { supabase } from '../supabaseClient';
+const API_URL = 'http://localhost:5000/api';
 
-export async function recordMatchResult(winnerName, winningScore, playersList) {
+// Fetch leaderboard data from the Express backend
+export async function fetchLeaderboard(search = '', minPoints = '') {
   try {
-    const playerNames = playersList.map((p) => 
-      p.name && p.name.trim() !== '' ? p.name : p.tag || 'Player'
+    const res = await fetch(
+      `${API_URL}/leaderboard?search=${encodeURIComponent(search)}&minPoints=${encodeURIComponent(minPoints)}`
     );
-
-    // 1. Record match result (passing exact integer for players_count and array for all_players)
-    const { error: matchError } = await supabase
-      .from('match_results')
-      .insert([
-        {
-          winner_name: winnerName,
-          winning_score: winningScore,
-          players_count: playersList.length, // Integer count
-          all_players: playerNames,           // Array of strings
-        },
-      ]);
-
-    if (matchError) {
-      console.error('Match insert error:', matchError);
-      throw matchError;
-    }
-
-    // 2. Update players table stats for all participants
-    for (const player of playersList) {
-      const username = player.name && player.name.trim() !== '' ? player.name : player.tag || 'Player';
-      const isWinner = username === winnerName;
-      const score = (player.total_points || 0) + (player.running_points || 0);
-
-      const { data: existingPlayer } = await supabase
-        .from('players')
-        .select('*')
-        .eq('username', username)
-        .maybeSingle();
-
-      if (existingPlayer) {
-        await supabase
-          .from('players')
-          .update({
-            total_wins: isWinner ? (existingPlayer.total_wins || 0) + 1 : (existingPlayer.total_wins || 0),
-            games_played: (existingPlayer.games_played || 0) + 1,
-            highest_score: Math.max(existingPlayer.highest_score || 0, score),
-          })
-          .eq('username', username);
-      } else {
-        await supabase
-          .from('players')
-          .insert([
-            {
-              username,
-              total_wins: isWinner ? 1 : 0,
-              games_played: 1,
-              highest_score: score,
-            },
-          ]);
-      }
-    }
+    if (!res.ok) throw new Error('Failed to fetch leaderboard data');
+    return await res.json();
   } catch (err) {
-    console.error('Error saving match result:', err.message || err);
+    console.error('Leaderboard service error:', err);
+    return [];
+  }
+}
+
+// Initialize a new game session on the server
+export async function startGame(players) {
+  try {
+    const res = await fetch(`${API_URL}/game/start`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ players }),
+    });
+    if (!res.ok) throw new Error('Failed to initialize game session');
+    return await res.json();
+  } catch (err) {
+    console.error('Start game service error:', err);
+    throw err;
+  }
+}
+
+// Request a server-side dice roll (Anti-cheat)
+export async function rollDice(gameId) {
+  try {
+    const res = await fetch(`${API_URL}/game/roll`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ gameId }),
+    });
+    if (!res.ok) throw new Error('Failed to roll dice on server');
+    return await res.json();
+  } catch (err) {
+    console.error('Roll dice service error:', err);
+    throw err;
+  }
+}
+
+// Bank turn points and check win condition on the server
+export async function holdPoints(gameId) {
+  try {
+    const res = await fetch(`${API_URL}/game/hold`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ gameId }),
+    });
+    if (!res.ok) throw new Error('Failed to hold points on server');
+    return await res.json();
+  } catch (err) {
+    console.error('Hold points service error:', err);
+    throw err;
+  }
+}
+
+// Compatibility export for GameOver.jsx (calls the server hold/win endpoint)
+export async function recordMatchResult(winnerName, winningScore, playersList, gameId) {
+  try {
+    // If your game uses gameId, this triggers the server-side win recording
+    const res = await fetch(`${API_URL}/game/hold`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ gameId }),
+    });
+    return await res.json();
+  } catch (err) {
+    console.error('Error recording match result:', err);
   }
 }
