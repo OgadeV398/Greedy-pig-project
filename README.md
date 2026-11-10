@@ -1,165 +1,130 @@
-Welcome to the repository for Greedy Pig, a collaborative web-based push-your-luck dice game built using React, Vite, and Tailwind CSS, powered by a shared Supabase PostgreSQL backend.
-
 # Greedy Pig 🐷
 
-A fast-paced multiplayer dice game built with React, Vite, Tailwind CSS, and Supabase.
+A fast-paced multiplayer push-your-luck dice game built using React, Vite, Tailwind CSS, a secure Node.js/Express backend API, and a PostgreSQL database.
 
 ## 🚀 Features
 
 - **Local Multiplayer**: Play live with friends.
-- **Global Leaderboard**: Tracks top players by wins and displays recent match history.
-- **Search & Filtering**: Real-time player search and match history filters (by date and player count).
-- **Pagination**: Efficiently load match records in batches.
+- **Server-Side Anti-Cheat Logic**: Dice rolls and score calculations are securely processed on the backend server to prevent client-side manipulation.
+- **Global Leaderboard**: Tracks top players by wins and high scores.
+- **Advanced Search & Filtering**: Real-time username search and minimum point filters.
+- **REST API Endpoints**: Structured backend communication for game sessions, rolling, holding, and leaderboard queries.
 
-## 🗄️ Database Setup (Supabase)
+---
+
+## 🗄️ Database Setup (PostgreSQL / pgAdmin)
 
 ### Database Schemas
 
 **`players` Table**
-- `id` (int4, Primary Key)
-- `username` (text, Unique)
-- `total_wins` (int4)
-- `highest_score` (int4)
-- `games_played` (int4)
-- `created_at` (timestamptz)
+- `id` (SERIAL, Primary Key)
+- `username` (VARCHAR(100), Unique, Not Null)
+- `total_wins` (INT, Default 0)
+- `highest_score` (INT, Default 0)
+- `games_played` (INT, Default 0)
+- `created_at` (TIMESTAMP)
 
 **`match_results` Table**
-- `id` (int4, Primary Key)
-- `winner_name` (text)
-- `winning_score` (int4)
-- `players_count` (int4)
-- `played_at` (timestamptz)
+- `id` (SERIAL, Primary Key)
+- `winner_name` (VARCHAR(100), Not Null)
+- `winning_score` (INT, Not Null)
+- `players_count` (INT, Not Null)
+- `all_players` (TEXT[] Array, Not Null)
+- `played_at` (TIMESTAMP)
 
+---
 
-1. Git Pull and NPM Install
+## 🛠️ Getting Started & Installation
 
-To get the project onto your local machine and install all required package dependencies, open your terminal and run the following commands:
+### 1. Clone & Install Dependencies
 
-# Clone the repository (if you haven't already)
+Open your terminal and run the following commands to set up both the frontend and backend environments:
+
+```bash
+# Clone the repository
 git clone <repository-url>
 cd greed_pig
 
-# Pull the latest changes from main
-git pull origin main
-
-# Install all project dependencies
+# Install frontend dependencies
 npm install
 
-2. The Environment Variables (.env)
+# Navigate to backend and install backend dependencies
+cd backend
+npm install
 
-Because .env files contain private credentials, Git intentionally ignores them (via .gitignore) and will not transfer them when you pull from GitHub. Therefore, every team member must create their own local .env file.
+2. Configure Environment Variables (.env)
 
-    Where to create it: Create a file named .env directly in the root directory of your project (right next to the provided .env.example file).
+Create a .env file inside your backend/ folder with your local PostgreSQL configuration:
+Code snippet
 
-    What's in it: Ask the project leader for the shared database keys (sent via team chat) and paste them directly into your local .env file:
+PORT=5000
+DB_USER=postgres
+DB_HOST=localhost
+DB_NAME=greedy_pig
+DB_PASSWORD=your_postgres_password
+DB_PORT=5432
 
-    VITE_SUPABASE_URL=https://fgchefpetkjomfxnsgyr.supabase.co
-    VITE_SUPABASE_ANON_KEY=your_shared_anon_key_here
+3. Initialize the Database Schema
 
-3. The Database Schema (schema.sql)
+    Open pgAdmin and create a database named greed_pig.
 
-    Where to find it: The master database structure file is saved as schema.sql right in the root directory of this repository.
+    Open the Query Tool on your greed_pig database and execute the following SQL script to establish your tables and seed demo records:
 
-    What it does: It establishes our backend architecture on Supabase. It creates two core tables: the players table (which tracks unique user profiles, total career wins, highest scores achieved, and total games played) and the match_results table (which acts as a historical log recording the winner, final score, player count, and timestamp of every completed match). It also applies Row Level Security (RLS) policies to allow public reads and game score inserts.
 
-4. Supabase Dashboard Explained & How to Access It
-
-    How to enter the project: Check your email for an invitation sent by the project leader via Supabase. Accept the invitation, sign in at supabase.com, and select greedy-pig-project from your dashboard.
-
-    Dashboard Explained:
-
-        Table Editor: Lets you visually inspect live data rows inside your players and match_results tables.
-
-        SQL Editor: Where database scripts (like schema.sql) are executed.
-
-        Project Settings (Gear Icon ➔ API): Where you retrieve your Project URL and anon public API key whenever needed.
-
-5. How to Run the Project
-
-Once your dependencies are installed and your .env file is configured, you can launch the local development server:
-
-Look at your terminal output for the local server link (usually http://localhost:5173 or [http://127.0.0.1:5173](http://127.0.0.1:5173)), and open that URL in your web browser to play the game and interact with the database.
-
-Teammates should **never** create tables individually on the Supabase UI without a plan, as uncoordinated schema changes will break other people's code or wipe out existing tables.
-
-Here is the standard, clean workflow for handling new database features without conflicts:
-
----
-
-### 1. The Core Rule: Centralized Schema Updates
-
-Instead of members clicking around in Supabase to make tables on their own, all database changes follow this simple lifecycle:
-
-1. **Discuss the New Table First:** If a teammate needs a new table (for example, `achievements` or `chat_messages`), they define the table structure in team chat first.
-2. **Append to `schema.sql`:** The new table code is added to the master `schema.sql` file in Git so it is documented for everyone.
-3. **Run the New Block in Supabase:** Execute *only* the new SQL block in the Supabase SQL Editor.
-
----
-
-### 2. How `CREATE TABLE IF NOT EXISTS` Prevents Conflicts
-
-Because of how we wrote your original SQL queries, existing data will never be overwritten or broken when adding new tables.
-
-Every new table script should be written using `IF NOT EXISTS`. For example, if a teammate needs a table for game settings, they add this to `schema.sql`:
-
-```sql
--- New feature table added later
-CREATE TABLE IF NOT EXISTS public.game_settings (
+    CREATE TABLE IF NOT EXISTS players (
     id SERIAL PRIMARY KEY,
-    player_id INTEGER REFERENCES public.players(id),
-    sound_volume INTEGER DEFAULT 80,
-    theme TEXT DEFAULT 'classic'
+    username VARCHAR(100) UNIQUE NOT NULL,
+    total_wins INT DEFAULT 0,
+    highest_score INT DEFAULT 0,
+    games_played INT DEFAULT 0,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 );
 
-```
+CREATE TABLE IF NOT EXISTS match_results (
+    id SERIAL PRIMARY KEY,
+    winner_name VARCHAR(100) NOT NULL,
+    winning_score INT NOT NULL,
+    players_count INT NOT NULL,
+    all_players TEXT[] NOT NULL,
+    played_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+);
 
-Because of `IF NOT EXISTS`:
-
-* Running this script will **only** create `game_settings`.
-* It will completely leave your existing `players` and `match_results` tables untouched.
-
----
-
-### 3. Modifying Existing Tables Safely (Adding Columns)
-
-If a requirement demands adding a new field to an existing table (e.g., adding `avatar_url` to the `players` table), members should **never drop or recreate** the table.
-
-Instead, they use an `ALTER TABLE` statement:
-
-```sql
--- Safe way to add a column without deleting existing players
-ALTER TABLE public.players 
-ADD COLUMN IF NOT EXISTS avatar_url TEXT DEFAULT 'default_pig.png';
-
-```
-
----
-
-### 4. Summary of the Team Workflow
-
-* **Step 1:** Member drafts the SQL code for their new table/column locally.
-* **Step 2:** Member pastes the new SQL snippet into the team repository's `schema.sql` file.
-* **Step 3:** Member executes that specific new snippet in the shared Supabase **SQL Editor**.
-* **Step 4:** Member pushes the updated `schema.sql` to GitHub so everyone stays in sync.
-
-### Row-Level Security (RLS)
-
-Make sure public policies are active in your Supabase project dashboard:
-- **`players`**: `SELECT`, `INSERT`, `UPDATE` policies enabled for public access.
-- **`match_results`**: `SELECT`, `INSERT` policies enabled for public access.
-
-### Mock Testing Data
-
-To seed the database with mock records for local testing, run the SQL script in your Supabase **SQL Editor**:
-
-```sql
+-- Seed Demo Players
 INSERT INTO public.players (username, total_wins, highest_score, games_played)
-VALUES 
+VALUES  
   ('PiggyMaster', 15, 250, 20),
   ('MuddyKing', 12, 210, 18),
-  ('OinkPro', 9, 185, 15);
+  ('OinkPro', 9, 185, 15),
+  ('CrispyBacon', 7, 150, 12),
+  ('TruffleHunter', 5, 120, 10),
+  ('SlopRunner', 3, 95, 8)
+ON CONFLICT (username) DO NOTHING;
 
-INSERT INTO public.match_results (winner_name, winning_score, players_count, played_at)
-VALUES 
-  ('PiggyMaster', 250, 4, NOW() - INTERVAL '1 hour'),
-  ('MuddyKing', 210, 3, NOW() - INTERVAL '3 hours');
+-- Seed Demo Matches
+INSERT INTO public.match_results (winner_name, winning_score, players_count, all_players, played_at)
+VALUES  
+  ('PiggyMaster', 250, 4, ARRAY['PiggyMaster', 'MuddyKing', 'OinkPro', 'CrispyBacon'], NOW() - INTERVAL '1 hour'),
+  ('MuddyKing', 210, 3, ARRAY['MuddyKing', 'OinkPro', 'TruffleHunter'], NOW() - INTERVAL '3 hours'),
+  ('OinkPro', 185, 2, ARRAY['OinkPro', 'SlopRunner'], NOW() - INTERVAL '5 hours'),
+  ('CrispyBacon', 150, 4, ARRAY['CrispyBacon', 'PiggyMaster', 'MuddyKing', 'SlopRunner'], NOW() - INTERVAL '1 day'),
+  ('PiggyMaster', 200, 3, ARRAY['PiggyMaster', 'TruffleHunter', 'OinkPro'], NOW() - INTERVAL '2 days'),
+  ('TruffleHunter', 120, 2, ARRAY['TruffleHunter', 'SlopRunner'], NOW() - INTERVAL '3 days');
+
+  How to Run the Project Locally
+
+You will run both the backend server and the frontend client concurrently:
+1. Start the Backend Server
+Bash
+
+cd backend
+node server.js
+
+(Server runs on http://localhost:5000)
+2. Start the Frontend Development Server
+
+Open a second terminal window in your root project directory (greed_pig/):
+Bash
+
+npm run dev
+
+(Open the local URL provided—usually http://localhost:5173—in your web browser to play).
