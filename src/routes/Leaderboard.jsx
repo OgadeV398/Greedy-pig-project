@@ -1,44 +1,40 @@
 import React, { useEffect, useState } from "react";
-import { supabase } from "../supabaseClient";
 import { Link } from "react-router-dom";
+import { fetchLeaderboard } from "../services/gameService";
 import defaultPig from "../assets/pig-0.png";
 
 export default function Leaderboard() {
   const [players, setPlayers] = useState([]);
   const [searchQuery, setSearchQuery] = useState("");
+  const [minPoints, setMinPoints] = useState("");
+
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
 
-  const fetchPlayers = async () => {
+  const loadLeaderboardData = async () => {
     setLoading(true);
     setError(null);
     try {
-      const { data: playerData, error: playerErr } = await supabase
-        .from("players")
-        .select("*")
-        .order("total_wins", { ascending: false })
-        .limit(20);
-
-      if (playerErr) throw playerErr;
-
-      setPlayers(playerData || []);
+      const data = await fetchLeaderboard(searchQuery, minPoints);
+      setPlayers(data || []);
     } catch (err) {
-      console.error("Leaderboard fetch error:", err.message);
-      setError("Failed to load leaderboard data. Please check your connection.");
+      console.error("Leaderboard error:", err);
+      setError("Failed to load leaderboard data. Please check your backend server.");
     } finally {
       setLoading(false);
     }
   };
 
+  // Fetch data whenever search query or minPoints changes (handled efficiently by backend query)
   useEffect(() => {
-    fetchPlayers();
-  }, []);
+    const timer = setTimeout(() => {
+      loadLeaderboardData();
+    }, 300); // 300ms debounce to keep typing smooth
 
-  const filteredPlayers = players.filter((p) =>
-    p.username.toLowerCase().includes(searchQuery.toLowerCase())
-  );
+    return () => clearTimeout(timer);
+  }, [searchQuery, minPoints]);
 
-  if (loading) {
+  if (loading && players.length === 0) {
     return (
       <div className="min-h-screen flex items-center justify-center text-white pri-font text-3xl">
         Loading Stats...
@@ -56,7 +52,7 @@ export default function Leaderboard() {
         <div className="bg-red-500/20 border border-red-500 text-red-200 p-4 rounded-lg flex items-center justify-between w-full max-w-xl sec-font">
           <span>{error}</span>
           <button
-            onClick={fetchPlayers}
+            onClick={loadLeaderboardData}
             className="bg-red-600 hover:bg-red-700 text-white px-4 py-2 rounded font-bold transition"
           >
             Retry
@@ -71,23 +67,32 @@ export default function Leaderboard() {
             Top Players
           </h2>
 
-          <div className="mb-4">
+          {/* Search & Points Filter Controls */}
+          <div className="space-y-3 mb-4 sec-font text-xs">
             <input
               type="text"
-              placeholder="Search player..."
+              placeholder="Search player username..."
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
-              className="w-full p-2.5 rounded-lg bg-[#111111a0] border border-[#d30cbc40] text-white sec-font text-sm focus:outline-none focus:border-[#d30cbc]"
+              className="w-full p-2.5 rounded-lg bg-[#111111a0] border border-[#d30cbc40] text-white text-sm focus:outline-none focus:border-[#d30cbc]"
+            />
+
+            <input
+              type="number"
+              placeholder="Min High Score (pts)"
+              value={minPoints}
+              onChange={(e) => setMinPoints(e.target.value)}
+              className="w-full p-2.5 rounded-lg bg-[#111111a0] border border-[#d30cbc40] text-white text-sm focus:outline-none focus:border-[#d30cbc]"
             />
           </div>
 
-          {filteredPlayers.length === 0 ? (
+          {players.length === 0 ? (
             <p className="text-gray-400 text-center sec-font py-4">
-              {searchQuery ? "No matching players found." : "No records found yet."}
+              No matching players found.
             </p>
           ) : (
             <div className="space-y-3 max-h-[400px] overflow-y-auto pr-1">
-              {filteredPlayers.map((p, idx) => (
+              {players.map((p, idx) => (
                 <div
                   key={p.id || idx}
                   className="flex items-center justify-between p-3 bg-[#111111a0] rounded-lg border border-white/5"
@@ -101,9 +106,14 @@ export default function Leaderboard() {
                       alt={p.username}
                       className="w-10 h-10 rounded-full object-cover border border-[#d30cbc]"
                     />
-                    <span className="sec-font font-bold text-lg">
-                      {p.username}
-                    </span>
+                    <div>
+                      <span className="sec-font font-bold text-lg block">
+                        {p.username}
+                      </span>
+                      <span className="text-[10px] text-gray-400">
+                        Joined: {new Date(p.created_at).toLocaleDateString()}
+                      </span>
+                    </div>
                   </div>
                   <div className="text-right sec-font text-sm">
                     <p className="text-[#056FA4] font-semibold">{p.total_wins} Wins</p>

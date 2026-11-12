@@ -62,14 +62,13 @@ export async function holdPoints(gameId) {
   }
 }
 
-// Compatibility export for GameOver.jsx (calls the server hold/win endpoint)
+// Compatibility export for GameOver.jsx
 export async function recordMatchResult(winnerName, winningScore, playersList, gameId) {
   try {
-    // If your game uses gameId, this triggers the server-side win recording
     const res = await fetch(`${API_URL}/game/hold`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ gameId }),
+      body: JSON.stringify({ gameId, winnerName, winningScore, playersList }),
     });
     return await res.json();
   } catch (err) {
