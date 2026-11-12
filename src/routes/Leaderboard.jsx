@@ -1,137 +1,208 @@
-import React, { useEffect, useState } from "react";
-import { Link } from "react-router-dom";
-import { fetchLeaderboard } from "../services/gameService";
-import defaultPig from "../assets/pig-0.png";
+import { useEffect, useMemo, useState } from "react";
+// Import getLeaderboard and alias it to fetchLeaderboard if desired, or just use getLeaderboard
+import { getLeaderboard } from "../services/gameService";
+import pig from "../assets/pig-0.png";
+import {
+  PremiumLayout,
+  Panel,
+  EmptyState,
+} from "../components/PremiumLayout";
+import {
+  FiSearch,
+  FiRefreshCw,
+  FiAward,
+} from "react-icons/fi";
 
 export default function Leaderboard() {
   const [players, setPlayers] = useState([]);
-  const [searchQuery, setSearchQuery] = useState("");
-  const [minPoints, setMinPoints] = useState("");
-
   const [loading, setLoading] = useState(true);
-  const [error, setError] = useState(null);
+  const [error, setError] = useState("");
+  const [query, setQuery] = useState("");
 
-  const loadLeaderboardData = async () => {
+  async function loadLeaderboard() {
     setLoading(true);
-    setError(null);
+    setError("");
+
     try {
-      const data = await fetchLeaderboard(searchQuery, minPoints);
+      // Call getLeaderboard from gameService
+      const data = await getLeaderboard();
       setPlayers(data || []);
     } catch (err) {
-      console.error("Leaderboard error:", err);
-      setError("Failed to load leaderboard data. Please check your backend server.");
+      console.error(err);
+      setError(
+        "Could not load the leaderboard. Please check your backend connection."
+      );
     } finally {
       setLoading(false);
     }
-  };
-
-  // Fetch data whenever search query or minPoints changes (handled efficiently by backend query)
-  useEffect(() => {
-    const timer = setTimeout(() => {
-      loadLeaderboardData();
-    }, 300); // 300ms debounce to keep typing smooth
-
-    return () => clearTimeout(timer);
-  }, [searchQuery, minPoints]);
-
-  if (loading && players.length === 0) {
-    return (
-      <div className="min-h-screen flex items-center justify-center text-white pri-font text-3xl">
-        Loading Stats...
-      </div>
-    );
   }
 
-  return (
-    <div className="min-h-screen text-white p-6 flex flex-col items-center justify-center space-y-8">
-      <h1 className="pri-font text-4xl sm:text-6xl text-[#d30cbc] text-center drop-shadow-md">
-        Greedy Pig Leaderboard
-      </h1>
+  useEffect(() => {
+    loadLeaderboard();
+  }, []);
 
-      {error && (
-        <div className="bg-red-500/20 border border-red-500 text-red-200 p-4 rounded-lg flex items-center justify-between w-full max-w-xl sec-font">
-          <span>{error}</span>
-          <button
-            onClick={loadLeaderboardData}
-            className="bg-red-600 hover:bg-red-700 text-white px-4 py-2 rounded font-bold transition"
-          >
-            Retry
-          </button>
+  const filteredPlayers = useMemo(() => {
+    return players.filter((player) => {
+      const playerName = player.name || player.username || "";
+      return playerName.toLowerCase().includes(query.toLowerCase());
+    });
+  }, [players, query]);
+
+  const topPlayers = players.slice(0, 3);
+
+  return (
+    <PremiumLayout
+      eyebrow="Competition"
+      title="Leaderboard"
+      description="Meet the top players in the Greedy Pig arena."
+    >
+      {!loading && !error && topPlayers.length > 0 && (
+        <div className="grid gap-4 sm:grid-cols-3">
+          {topPlayers.map((player, index) => (
+            <Panel
+              key={player.id || index}
+              className="text-center"
+            >
+              <div className="mx-auto mb-3 flex h-14 w-14 items-center justify-center rounded-2xl bg-pink-400/10 text-2xl">
+                {["🥇", "🥈", "🥉"][index]}
+              </div>
+
+              <img
+                src={player.avatar || pig}
+                alt=""
+                className="mx-auto h-16 w-16 object-contain rounded-xl"
+              />
+
+              <p className="mt-3 truncate font-bold text-white">
+                {player.name || player.username || "Unknown player"}
+              </p>
+
+              <p className="mt-1 text-sm text-pink-300">
+                {player.total_victories ?? player.total_wins ?? 0} wins
+              </p>
+
+              <p className="mt-2 text-xs text-slate-400">
+                Rank #{index + 1}
+              </p>
+            </Panel>
+          ))}
         </div>
       )}
 
-      {/* Centered Top Players Section */}
-      <div className="w-full max-w-xl bg-[#00000080] border border-[#d30cbc40] p-6 rounded-xl shadow-2xl backdrop-blur-sm flex flex-col justify-between">
-        <div>
-          <h2 className="pri-font text-2xl text-[#056FA4] mb-4 text-center">
-            Top Players
-          </h2>
+      <Panel className="mt-6">
+        <div className="flex flex-wrap items-center justify-between gap-4">
+          <div>
+            <div className="flex items-center gap-2">
+              <FiAward className="text-pink-400" />
 
-          {/* Search & Points Filter Controls */}
-          <div className="space-y-3 mb-4 sec-font text-xs">
-            <input
-              type="text"
-              placeholder="Search player username..."
-              value={searchQuery}
-              onChange={(e) => setSearchQuery(e.target.value)}
-              className="w-full p-2.5 rounded-lg bg-[#111111a0] border border-[#d30cbc40] text-white text-sm focus:outline-none focus:border-[#d30cbc]"
-            />
+              <h2 className="text-xl font-extrabold text-white">
+                All Players
+              </h2>
+            </div>
 
-            <input
-              type="number"
-              placeholder="Min High Score (pts)"
-              value={minPoints}
-              onChange={(e) => setMinPoints(e.target.value)}
-              className="w-full p-2.5 rounded-lg bg-[#111111a0] border border-[#d30cbc40] text-white text-sm focus:outline-none focus:border-[#d30cbc]"
-            />
+            <p className="mt-2 text-sm text-slate-400">
+              Ranked by total victories
+            </p>
           </div>
 
-          {players.length === 0 ? (
-            <p className="text-gray-400 text-center sec-font py-4">
-              No matching players found.
-            </p>
-          ) : (
-            <div className="space-y-3 max-h-[400px] overflow-y-auto pr-1">
-              {players.map((p, idx) => (
-                <div
-                  key={p.id || idx}
-                  className="flex items-center justify-between p-3 bg-[#111111a0] rounded-lg border border-white/5"
-                >
-                  <div className="flex items-center space-x-3">
-                    <span className="pri-font text-[#d30cbc] text-lg w-6">
-                      #{idx + 1}
-                    </span>
-                    <img
-                      src={p.avatar || defaultPig}
-                      alt={p.username}
-                      className="w-10 h-10 rounded-full object-cover border border-[#d30cbc]"
-                    />
-                    <div>
-                      <span className="sec-font font-bold text-lg block">
-                        {p.username}
-                      </span>
-                      <span className="text-[10px] text-gray-400">
-                        Joined: {new Date(p.created_at).toLocaleDateString()}
-                      </span>
-                    </div>
-                  </div>
-                  <div className="text-right sec-font text-sm">
-                    <p className="text-[#056FA4] font-semibold">{p.total_wins} Wins</p>
-                    <p className="text-xs text-gray-400">High: {p.highest_score} pts</p>
-                  </div>
-                </div>
-              ))}
-            </div>
-          )}
+          <button
+            type="button"
+            onClick={loadLeaderboard}
+            disabled={loading}
+            className="gp-button-secondary disabled:opacity-50 cursor-pointer"
+          >
+            <FiRefreshCw />
+            Refresh
+          </button>
         </div>
-      </div>
 
-      <Link
-        to="/"
-        className="sec-font text-xl rounded px-8 py-4 bg-[#d30cbcc0] font-bold duration-500 skew-x-6 hover:skew-x-0 hover:scale-95 hover:bg-[#d30cbc]"
-      >
-        Home
-      </Link>
-    </div>
+        <label className="mt-6 flex items-center gap-3 rounded-xl border border-white/15 bg-white/5 px-4 py-3">
+          <FiSearch className="text-slate-400" />
+
+          <span className="sr-only">
+            Search players
+          </span>
+
+          <input
+            type="search"
+            value={query}
+            onChange={(e) => setQuery(e.target.value)}
+            placeholder="Search players..."
+            className="w-full bg-transparent text-white outline-none placeholder:text-slate-500"
+          />
+        </label>
+
+        {error && (
+          <div
+            role="alert"
+            className="mt-5 rounded-xl border border-red-400/30 bg-red-500/10 p-4 text-red-200"
+          >
+            {error}
+          </div>
+        )}
+
+        {loading && (
+          <p className="py-12 text-center text-slate-300">
+            Loading leaderboard...
+          </p>
+        )}
+
+        {!loading && !error && filteredPlayers.length === 0 && (
+          <EmptyState
+            title="No players found"
+            description={
+              query
+                ? "Try searching for another player."
+                : "No leaderboard records are available yet."
+            }
+          />
+        )}
+
+        {!loading && !error && filteredPlayers.length > 0 && (
+          <div className="mt-6 overflow-x-auto">
+            <table className="w-full min-w-[530px] text-left">
+              <thead>
+                <tr className="text-xs uppercase tracking-wider text-slate-400">
+                  <th className="py-3">Rank</th>
+                  <th>Player</th>
+                  <th>Wins</th>
+                  <th>Highest Score</th>
+                  <th>Total Score</th>
+                </tr>
+              </thead>
+
+              <tbody>
+                {filteredPlayers.map((player, idx) => (
+                  <tr
+                    key={player.id || player.name || idx}
+                    className="border-t border-white/10"
+                  >
+                    <td className="py-4 font-bold text-pink-300">
+                      #{players.indexOf(player) + 1}
+                    </td>
+
+                    <td className="font-semibold text-white">
+                      {player.name || player.username || "Unknown"}
+                    </td>
+
+                    <td className="text-slate-200">
+                      {player.total_victories ?? player.total_wins ?? 0}
+                    </td>
+
+                    <td className="text-slate-200">
+                      {player.highest_score || player.total_score || 0}
+                    </td>
+
+                    <td className="text-slate-200">
+                      {player.total_score || 0}
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        )}
+      </Panel>
+    </PremiumLayout>
   );
 }

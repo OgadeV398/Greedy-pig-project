@@ -1,35 +1,20 @@
-import React from "react";
+import { useContext } from "react";
+import { LiveGameContext } from "../../../../context/useLiveGameContext";
 
-function CurrentPlayerMobile({ playerData, currentPlayer }) {
+export default function CurrentPlayerMobile() {
+  const { playerData = [], currentPlayer = 0 } = useContext(LiveGameContext);
+  const activePlayer = playerData[currentPlayer] || playerData[0] || { name: "Player", score: 0 };
+
   return (
-    <div className="md:hidden flex items-center justify-center text-sm w-full p-2">
-      <table className=" w-full">
-        <tbody>
-          <tr
-            className={` ${`bg-[#ffffff10] text-[#ffffff] border-[#ffffffc0] hover:border-[#ffffff]`} w-full h-[50px] rounded-lg border  duration-300 scroll-mt-[300px] text-base lg:text-lg`}
-          >
-            <td className="w-[50px]">
-              <figure className={` h-[40px]  p-2 `}>
-                <img src={playerData[currentPlayer].avatar} />
-              </figure>
-            </td>
-            <td className=" ">
-              {" "}
-              {playerData[currentPlayer].name === ""
-                ? playerData[currentPlayer].tag
-                : playerData[currentPlayer].name}
-              's Turn
-            </td>
-            <td className="  ">
-              {playerData[currentPlayer].total_points +
-                playerData[currentPlayer].running_points}
-            </td>
-            <td className="  ">{playerData[currentPlayer].running_points}</td>
-          </tr>
-        </tbody>
-      </table>
+    <div className="flex items-center justify-between rounded-2xl border border-white/10 bg-white/5 p-4 text-white">
+      <div>
+        <p className="text-xs font-bold uppercase tracking-wider text-pink-300">Current Turn</p>
+        <h3 className="mt-1 text-lg font-black">{activePlayer.name || activePlayer.username || "Player"}</h3>
+      </div>
+      <div className="text-right">
+        <p className="text-xs text-slate-400">Score</p>
+        <p className="text-xl font-black text-pink-300">{activePlayer.score ?? activePlayer.totalScore ?? 0}</p>
+      </div>
     </div>
   );
 }
-
-export default CurrentPlayerMobile;

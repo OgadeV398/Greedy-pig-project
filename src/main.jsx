@@ -1,15 +1,27 @@
 import React from "react";
 import ReactDOM from "react-dom/client";
-import { createBrowserRouter, RouterProvider } from "react-router-dom";
+import {
+  createBrowserRouter,
+  RouterProvider,
+} from "react-router-dom";
 import "./index.css";
+
 import Root from "./routes/root";
 import ErrorPage from "./error-page";
+
 import LiveGameSetup from "./routes/play_friends_live/setup/Setup";
 import Home from "./routes/Home";
 import HowToPlay from "./routes/HowToPlay";
 import LiveGame from "./routes/play_friends_live/game/Game";
 import LiveGamePage from "./routes/play_friends_live/LivePage";
 import Leaderboard from "./routes/Leaderboard";
+
+import MatchHistory from "./routes/MatchHistory";
+import Statistics from "./routes/Statistics";
+import Accessibility from "./routes/Accessibility";
+import InteractiveTutorial from "./routes/InteractiveTutorial";
+import Achievements from "./routes/Achievements";
+import Profile from "./routes/Profile";
 
 const router = createBrowserRouter([
   {
@@ -34,7 +46,8 @@ const router = createBrowserRouter([
             path: "how-to-play/",
             element: <HowToPlay />,
           },
-        ]},
+        ],
+      },
       {
         path: "/",
         element: <Home />,
@@ -43,11 +56,37 @@ const router = createBrowserRouter([
         path: "leaderboard",
         element: <Leaderboard />,
       },
+      {
+        path: "match-history",
+        element: <MatchHistory />,
+      },
+      {
+        path: "statistics",
+        element: <Statistics />,
+      },
+      {
+        path: "accessibility",
+        element: <Accessibility />,
+      },
+      {
+        path: "tutorial",
+        element: <InteractiveTutorial />,
+      },
+      {
+        path: "achievements",
+        element: <Achievements />,
+      },
+      {
+        path: "profile",
+        element: <Profile />,
+      },
     ],
   },
 ]);
 
-ReactDOM.createRoot(document.getElementById("root")).render(
+ReactDOM.createRoot(
+  document.getElementById("root")
+).render(
   <React.StrictMode>
     <RouterProvider router={router} />
   </React.StrictMode>

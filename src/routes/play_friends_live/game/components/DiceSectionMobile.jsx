@@ -1,4 +1,4 @@
-import React, { useState } from 'react'
+import React, { useState } from 'react';
 import { useLiveGameContext } from 'src/context/useLiveGameContext';
 import Menu from "./Menu";
 import { Dice } from "src/components/Dice";
@@ -7,116 +7,64 @@ import loseSound from "src/sound_effect/lose_sound.mp3";
 import celebrationSound from "src/sound_effect/celebration.mp3";
 import useAudio from "src/hooks/useAudio";
 
-
 function DiceSectionMobile() {
   const {
     playerData,
-    setPlayerData,
-    setChangeBackground,
     currentPlayer,
-    setCurrentPlayer,
     maxPoints,
-    setIsGameOver,
-    setDiceValue,
+    handleRollDice,
+    handleHoldDice,
   } = useLiveGameContext();
-  const [isRolling, setIsRolling] = useState(false)
+  
+  const [isRolling, setIsRolling] = useState(false);
   const addPlayerAudio = useAudio(addPlayerSound);
-  const loseAudio = useAudio(loseSound);
-  const celebrationAudio = useAudio(celebrationSound);
 
-  const handlePassClick = () => {
+  const handlePassClick = async (e) => {
+    e.preventDefault();
     if (isRolling) return;
     addPlayerAudio?.play();
-    let cp = currentPlayer;
-    let newPlayerData = [...playerData];
-
-    newPlayerData[cp]["total_points"] += newPlayerData[cp]["running_points"];
-    newPlayerData[cp]["running_points"] = 0;
-    setPlayerData(newPlayerData);
-
-    cp = (currentPlayer + 1) % playerData.length;
-    setCurrentPlayer(cp);
+    
+    // Call Express backend endpoint for holding points
+    await handleHoldDice();
   };
 
-  function setGameOverPage(
-    diceValue,
-    playerData,
-    currentPlayer,
-    maxPoints,
-    setIsGameOver,
-    celebrationAudio
-  ) {
-    let currentPoint =
-      playerData[currentPlayer].running_points +
-      playerData[currentPlayer].total_points +
-      diceValue;
-    let interval
-    let endRoll = 0
-  
-    if (currentPoint >= maxPoints) {
-      interval = setInterval(() => {
-        if (endRoll < 10) {
-          endRoll++;
-        } else {
-          celebrationAudio?.play()
-          setIsGameOver(true);
-          clearInterval(interval);
-        }
-      }, 100);
+  const handleFinalDiceValue = async () => {
+    setIsRolling(true);
+    try {
+      // Call Express backend endpoint for secure roll
+      await handleRollDice();
+    } catch (err) {
+      console.error("Error executing mobile server roll:", err);
+    } finally {
+      setIsRolling(false);
     }
-  }
-  
-
-  function handleFinalDiceValue(diceValue){
-    let cp = currentPlayer;
-    let newPlayerData = [...playerData];
-
-    if (diceValue === 1) {
-      loseAudio?.play();
-      newPlayerData[cp]["running_points"] = 0;
-      cp = (currentPlayer + 1) % playerData.length;
-      setCurrentPlayer(cp);
-      setDiceValue(diceValue)
-    } else {
-      setGameOverPage(
-        diceValue,
-        playerData,
-        currentPlayer,
-        maxPoints,
-        setIsGameOver,
-        celebrationAudio
-      );
-      newPlayerData[cp]["running_points"] += diceValue;
-      setPlayerData(newPlayerData);
-      setDiceValue(diceValue)
-    }
-  }
+  };
 
   return (
-    <div className=" border-r-[#ffffff40] border-r md:hidden flex flex-col items-center justify-around px-2 bg-[#00000010] h-[60vh] ">
-         <a
-          href={"#" + (currentPlayer % playerData.length)}
-          className="bg-[#056FA480] w-[200px] md:w-full  text-white text-center text-base lg:text-xl xl:text-2xl font-semibold py-2 lg:py-4 rounded border hover:scale-105 active:scale-100 duration-300"
-          onClick={handlePassClick}
-        >
-          PASS
-        </a>
+    <div className="border-r-[#ffffff40] border-r md:hidden flex flex-col items-center justify-around px-2 bg-[#00000010] h-[60vh]">
+      <button
+        type="button"
+        onClick={handlePassClick}
+        className="bg-[#056FA480] w-[200px] md:w-full text-white text-center text-base lg:text-xl xl:text-2xl font-semibold py-2 lg:py-4 rounded border hover:scale-105 active:scale-100 duration-300 cursor-pointer"
+      >
+        PASS
+      </button>
 
-        <Dice
-          getFinalDiceValue={handleFinalDiceValue}
-          setIsRolling={setIsRolling}
-          isRolling={isRolling}
-          setChangeBackground={setChangeBackground}
-        />
+      <Dice
+        getFinalDiceValue={handleFinalDiceValue}
+        setIsRolling={setIsRolling}
+        isRolling={isRolling}
+        setChangeBackground={() => {}}
+      />
       
+      <Menu />
       
-        <Menu />
-        <div className="text-white flex justify-between w-full">
-          <p className="text-center text-sm lg:text-lg">{playerData.length} players</p>
-          <p className="text-center text-sm  lg:text-lg">{maxPoints} max points</p>
-        </div>
+      <div className="text-white flex justify-between w-full">
+        <p className="text-center text-sm lg:text-lg">{playerData?.length || 0} players</p>
+        <p className="text-center text-sm lg:text-lg">{maxPoints} max points</p>
       </div>
-  )
+    </div>
+  );
 }
 
-export default DiceSectionMobile
+export default DiceSectionMobile;

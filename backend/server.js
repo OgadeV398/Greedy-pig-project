@@ -73,6 +73,10 @@ app.post('/api/game/hold', async (req, res) => {
   const { gameId, winnerName, winningScore, playersList } = req.body;
   
   let game = activeGames[gameId];
+  let isMatchWon = false;
+  let finalWinner = '';
+  let finalScore = 0;
+  let allPlayers = [];
 
   // If game is active in memory, process turn / win condition
   if (game && !game.isGameOver) {
@@ -83,19 +87,31 @@ app.post('/api/game/hold', async (req, res) => {
     if (activePlayer.totalScore >= 100) {
       game.isGameOver = true;
       game.winner = activePlayer;
+      isMatchWon = true;
+      finalWinner = activePlayer.name;
+      finalScore = activePlayer.totalScore;
     } else {
       game.currentPlayerIndex = (game.currentPlayerIndex + 1) % game.players.length;
       return res.json({ gameState: game });
     }
+    allPlayers = game.players.map(p => p.name);
+  } else {
+    // Fallback if session expired or using client-side fallback loop
+    finalWinner = (winnerName || '').trim();
+    finalScore = Number(winningScore) || 0;
+    allPlayers = Array.isArray(playersList) && playersList.length > 0 ? playersList : [finalWinner];
+    if (finalScore >= 100 && finalWinner && finalWinner.toLowerCase() !== 'unknown player') {
+      isMatchWon = true;
+    }
   }
 
-  // Resolve winner and players whether coming from active session or direct payload fallback
-  const finalWinner = game?.winner?.name || winnerName || 'Unknown Player';
-  const finalScore = game?.winner?.totalScore || winningScore || 100;
-  const allPlayers = game?.players ? game.players.map(p => p.name) : (playersList || [finalWinner]);
+  // GUARD: Do NOT touch or insert into PostgreSQL unless a player actually won the game!
+  if (!isMatchWon || !finalWinner || finalWinner.toLowerCase() === 'unknown player') {
+    return res.json({ success: false, message: 'Turn held, game still in progress.' });
+  }
 
   try {
-    // Save match results to PostgreSQL
+    // Save match results to PostgreSQL safely
     await db.query(
       `INSERT INTO match_results (winner_name, winning_score, players_count, all_players)
        VALUES ($1, $2, $3, $4)`,
@@ -104,8 +120,11 @@ app.post('/api/game/hold', async (req, res) => {
 
     // Update player statistics safely using parameterized queries
     for (const name of allPlayers) {
-      const isWinner = name === finalWinner;
-      const existing = await db.query('SELECT * FROM players WHERE username = $1', [name]);
+      const sanitizedName = (name || '').trim();
+      if (!sanitizedName || sanitizedName.toLowerCase() === 'unknown player') continue;
+
+      const isWinner = sanitizedName === finalWinner;
+      const existing = await db.query('SELECT * FROM players WHERE username = $1', [sanitizedName]);
 
       if (existing.rows.length > 0) {
         const row = existing.rows[0];
@@ -116,15 +135,15 @@ app.post('/api/game/hold', async (req, res) => {
           [
             isWinner ? row.total_wins + 1 : row.total_wins,
             row.games_played + 1,
-            Math.max(row.highest_score, finalScore),
-            name,
+            Math.max(row.highest_score || 0, finalScore),
+            sanitizedName,
           ]
         );
       } else {
         await db.query(
           `INSERT INTO players (username, total_wins, games_played, highest_score)
            VALUES ($1, $2, 1, $3)`,
-          [name, isWinner ? 1 : 0, finalScore]
+          [sanitizedName, isWinner ? 1 : 0, finalScore]
         );
       }
     }
@@ -137,7 +156,11 @@ app.post('/api/game/hold', async (req, res) => {
     delete activeGames[gameId];
   }
 
-  res.json({ success: true, message: 'Match successfully recorded to PostgreSQL' });
+  res.json({
+    success: true,
+    gameState: game || null,
+    message: 'Match successfully recorded to PostgreSQL',
+  });
 });
 
 // -------------------------------------------------------------------

@@ -1,68 +1,76 @@
-import React, { useRef, useState, useEffect } from "react";
-import Confetti from "react-confetti";
-import { Link } from "react-router-dom";
-import { recordMatchResult } from "../../../services/gameService";
+import { useContext, useEffect } from "react";
+import { useNavigate } from "react-router-dom";
+import { LiveGameContext } from "../../../context/useLiveGameContext";
+import { saveLocalWin } from "../../../services/gameService";
 
-function GameOver({ playerData, currentPlayer, setIsContinue }) {
-  const [leaderBoard, setLeaderBoard] = useState(playerData);
-  const windowWidth = useRef(window.innerWidth);
-  const windowHeight = useRef(window.innerHeight);
+export default function GameOver() {
+  const context = useContext(LiveGameContext) || {};
+  const { playerData = [], maxPoints = 100, setPlayerData, setIsGameOver, setCurrentPlayer } = context;
+  const navigate = useNavigate();
 
-  // Ref guard to prevent duplicate database writes in React Strict Mode
-  const hasRecordedRef = useRef(false);
+  if (!playerData || playerData.length === 0) {
+    return null;
+  }
+
+  // Find the winning player with strict name sanitization
+  const rawWinner = playerData.reduce((max, p) => ((p.score || 0) > (max?.score || 0) ? p : max), playerData[0]);
+  
+  const winnerName = (rawWinner?.name || rawWinner?.username || "").trim();
+  const finalWinnerName = winnerName && winnerName.toLowerCase() !== "unknown player" ? winnerName : "Player 1";
+  
+  const winner = {
+    ...rawWinner,
+    name: finalWinnerName,
+    score: rawWinner?.score || maxPoints
+  };
 
   useEffect(() => {
-    setIsContinue(false);
-  }, []);
-
-  useEffect(() => {
-    let newLeaderBoard = [...playerData].sort(
-      (a, b) =>
-        b.total_points + b.running_points - (a.total_points + a.running_points)
-    );
-    setLeaderBoard(newLeaderBoard);
-
-    // Record match result only once on initial calculation, passing full playerData
-    if (newLeaderBoard.length > 0 && !hasRecordedRef.current) {
-      hasRecordedRef.current = true;
-      
-      const winner = newLeaderBoard[0];
-      const winnerName = winner.name === "" ? winner.tag : winner.name;
-      const winningScore = winner.total_points + winner.running_points;
-
-      // Pass the full playerData array so all players/opponents are recorded
-      recordMatchResult(winnerName, winningScore, playerData);
+    if (winner && winner.name) {
+      saveLocalWin(winner.name, winner.score, winner.avatar || "");
     }
-  }, [playerData, currentPlayer]);
+  }, [winner.name, winner.score]);
+
+  const handlePlayAgain = () => {
+    setPlayerData((prev) => (prev || []).map(p => ({ ...p, score: 0, runningScore: 0 })));
+    setCurrentPlayer(0);
+    setIsGameOver(false);
+  };
 
   return (
-    <div className=" min-h-screen w-screen absolute bg-[#000000c0] flex justify-center items-center  text-white top-0">
-      <Confetti width={windowWidth.current} height={windowHeight.current} />
-      <section className="grid place-content-center gap-4 w-[400px]">
-        <figure className="flex justify-center w-full">
-          <img src={leaderBoard[0]?.avatar} alt="" width={300}/>
-        </figure>
-        <p className="text-center text-5xl pri-font capitalize">
-          {leaderBoard[0]?.name === '' ? leaderBoard[0]?.tag : leaderBoard[0]?.name} wins
-        </p>
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/80 backdrop-blur-md p-4 animate-fade-in">
+      <div className="bg-[#1a1a1a] border border-pink-500/40 rounded-3xl p-8 max-w-md w-full text-center shadow-2xl flex flex-col items-center gap-6">
+        
+        <div className="relative">
+          <div className="absolute -inset-2 bg-gradient-to-r from-pink-500 to-violet-600 rounded-full blur-lg opacity-70 animate-pulse"></div>
+          <div className="relative w-24 h-24 rounded-2xl bg-white/10 border-2 border-pink-500 overflow-hidden flex items-center justify-center p-2">
+            <img src={winner?.avatar || ""} alt={winner.name} className="w-full h-full object-cover rounded-xl" />
+          </div>
+        </div>
 
-        <Link
-          to={`/live-game/setup`}
-          className="text-center sec-font text-xl rounded px-8 py-4 bg-[#d30cbcc0] font-bold duration-500 skew-x-6 hover:skew-x-0 hover:scale-95 hover:bg-[#d30cbc]"
-        >
-          Play Again
-        </Link>
+        <div>
+          <span className="text-pink-400 font-bold uppercase tracking-widest text-xs">Victory! Target {maxPoints} Reached</span>
+          <h2 className="text-3xl font-black text-white mt-1">{winner.name} Wins! 🎉</h2>
+          <p className="text-white/60 text-sm mt-2">Finished with an impressive score of <strong className="text-white">{winner.score}</strong> points.</p>
+        </div>
 
-        <Link
-          to={`/`}
-          className="text-center sec-font text-xl rounded px-8 py-4 bg-[#d30cbcc0] font-bold duration-500 -skew-x-6 hover:skew-x-0 hover:scale-95 hover:bg-[#d30cbc]"
-        >
-          Home
-        </Link>
-       <a href="https://forms.gle/skt5UKYGbDVzu2EL9" className="text-[#ffffff] underline text-center hover:text-[#d30cbc]" target="_blank" rel="noreferrer">feedback</a>
-      </section>
+        <div className="flex flex-col sm:flex-row gap-3 w-full mt-2">
+          <button
+            type="button"
+            onClick={handlePlayAgain}
+            className="flex-1 bg-pink-500 hover:bg-pink-400 text-white font-bold py-3 px-6 rounded-2xl shadow-lg transition transform active:scale-95 cursor-pointer"
+          >
+            Play Again
+          </button>
+          <button
+            type="button"
+            onClick={() => navigate("/")}
+            className="flex-1 bg-white/10 hover:bg-white/20 text-white font-bold py-3 px-6 rounded-2xl border border-white/10 transition transform active:scale-95 cursor-pointer"
+          >
+            Main Menu
+          </button>
+        </div>
+
+      </div>
     </div>
   );
 }
-
-export default GameOver;
