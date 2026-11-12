@@ -1,0 +1,138 @@
+@import url("https://fonts.googleapis.com/css2?family=Raleway:wght@100;200;300;400;500;600;700;800;900&family=Titan+One&display=swap");
+
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+:root {
+  font-family: "Raleway", sans-serif;
+  color-scheme: dark;
+}
+
+html {
+  scroll-behavior: smooth;
+  scrollbar-width: none;
+}
+
+body {
+  margin: 0;
+  min-width: 320px;
+  min-height: 100vh;
+  background-color: #110e1d;
+  color: #ffffff;
+  font-family: "Raleway", sans-serif;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+.pri-font {
+  font-family: "Titan One", cursive;
+}
+
+.sec-font {
+  font-family: "Raleway", sans-serif;
+}
+
+::-webkit-scrollbar {
+  width: 0;
+  height: 0;
+}
+
+html[data-gp-text="normal"] {
+  font-size: 100%;
+}
+
+html[data-gp-text="large"] {
+  font-size: 112.5%;
+}
+
+html[data-gp-text="extra"] {
+  font-size: 125%;
+}
+
+html[data-gp-contrast="high"] body {
+  background-color: #050508;
+  color: #ffffff;
+}
+
+html[data-gp-contrast="high"] .text-slate-400,
+html[data-gp-contrast="high"] .text-slate-500 {
+  color: #e2e8f0;
+}
+
+html[data-gp-contrast="high"] .border-white\/10 {
+  border-color: rgba(255, 255, 255, 0.5);
+}
+
+html[data-gp-contrast="high"] .border-white\/15 {
+  border-color: rgba(255, 255, 255, 0.6);
+}
+
+html[data-gp-motion="reduced"] *,
+html[data-gp-motion="reduced"] *::before,
+html[data-gp-motion="reduced"] *::after {
+  animation-duration: 0.01ms !important;
+  animation-iteration-count: 1 !important;
+  transition-duration: 0.01ms !important;
+  scroll-behavior: auto !important;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
+  }
+}
+
+:focus-visible {
+  outline: 2px solid #ff83c1;
+  outline-offset: 3px;
+}
+
+img,
+video {
+  max-width: 100%;
+}
+
+button,
+input,
+select,
+textarea {
+  font: inherit;
+}
+
+button:disabled {
+  cursor: not-allowed;
+}
+
+.game-card {
+  background-color: #211c30;
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  border-radius: 22px;
+}
+
+.game-card:hover {
+  border-color: rgba(244, 114, 182, 0.3);
+}
+
+.game-button-primary {
+  background-color: #ec4899;
+  color: #ffffff;
+  border-radius: 12px;
+  font-weight: 700;
+  transition: background-color 0.2s ease;
+}
+
+.game-button-primary:hover:not(:disabled) {
+  background-color: #f472b6;
+}
+
+.game-button-primary:disabled {
+  opacity: 0.5;
+}
