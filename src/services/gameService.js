@@ -1,78 +1,229 @@
-const API_URL = 'http://localhost:5000/api';
+const API_BASE = "http://localhost:5000/api";
 
-// Fetch leaderboard data from the Express backend
-export async function fetchLeaderboard(search = '', minPoints = '') {
-  try {
-    const res = await fetch(
-      `${API_URL}/leaderboard?search=${encodeURIComponent(search)}&minPoints=${encodeURIComponent(minPoints)}`
-    );
-    if (!res.ok) throw new Error('Failed to fetch leaderboard data');
-    return await res.json();
-  } catch (err) {
-    console.error('Leaderboard service error:', err);
-    return [];
-  }
-}
+const DEFAULT_DUMMY_LEADERBOARD = [
+  { id: 1, name: "Oreo", total_victories: 5, total_score: 450, avatar: "" },
+  { id: 2, name: "Rosie", total_victories: 3, total_score: 320, avatar: "" },
+  { id: 3, name: "Maggie", total_victories: 2, total_score: 280, avatar: "" },
+  { id: 4, name: "Jill", total_victories: 2, total_score: 240, avatar: "" },
+  { id: 5, name: "Lulu", total_victories: 1, total_score: 190, avatar: "" },
+  { id: 6, name: "Esmeralda", total_victories: 1, total_score: 150, avatar: "" }
+];
 
-// Initialize a new game session on the server
-export async function startGame(players) {
+export async function startGame(players, targetScore = 100) {
   try {
-    const res = await fetch(`${API_URL}/game/start`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ players }),
+    const res = await fetch(`${API_BASE}/game/start`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ players, targetScore }),
     });
-    if (!res.ok) throw new Error('Failed to initialize game session');
-    return await res.json();
+    if (!res.ok) throw new Error("Backend offline");
+    const data = await res.json();
+
+    return {
+      gameId: data.gameId,
+      targetScore: data.gameState?.targetScore || targetScore,
+      players: data.gameState?.players || data.players || [],
+    };
   } catch (err) {
-    console.error('Start game service error:', err);
-    throw err;
+    return {
+      gameId: "local-session-" + Date.now(),
+      targetScore,
+      players: players.map((p, i) => ({
+        id: i + 1,
+        name: p.name || `Player ${i + 1}`,
+        avatar: p.avatar || "",
+        score: 0,
+        runningScore: 0
+      }))
+    };
   }
 }
 
-// Request a server-side dice roll (Anti-cheat)
 export async function rollDice(gameId) {
+  const res = await fetch(`${API_BASE}/game/roll`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ gameId }),
+  });
+  if (!res.ok) throw new Error("Backend offline");
+  const data = await res.json();
+  const state = data.gameState || data;
+
+  return {
+    diceValue: data.diceRoll ?? data.diceValue,
+    players: state.players?.map(p => ({
+      ...p,
+      score: Number(p.totalScore ?? p.score ?? 0),
+      runningScore: Number(p.turnScore ?? p.runningScore ?? 0),
+    })),
+    currentPlayer: state.currentPlayerIndex ?? state.currentPlayer ?? 0,
+    isGameOver: state.isGameOver ?? false,
+  };
+}
+
+export async function holdPoints(gameId, payload = {}) {
+  const res = await fetch(`${API_BASE}/game/hold`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ gameId, ...payload }),
+  });
+  if (!res.ok) throw new Error("Backend offline");
+  const data = await res.json();
+  const state = data.gameState || data;
+
+  return {
+    ...data,
+    gameState: state,
+    players: state?.players?.map(p => ({
+      ...p,
+      score: Number(p.totalScore ?? p.score ?? 0),
+      runningScore: Number(p.turnScore ?? p.runningScore ?? 0),
+    })),
+    currentPlayer: state?.currentPlayerIndex ?? state?.currentPlayer ?? 0,
+    isGameOver: state?.isGameOver ?? Boolean(data.success),
+  };
+}
+
+/**
+ * Fetch leaderboard ensuring local storage wins take precedence and display instantly
+ */
+export async function getLeaderboard() {
+  let backendData = [];
   try {
-    const res = await fetch(`${API_URL}/game/roll`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ gameId }),
-    });
-    if (!res.ok) throw new Error('Failed to roll dice on server');
-    return await res.json();
+    const res = await fetch(`${API_BASE}/leaderboard`);
+    if (res.ok) {
+      backendData = await res.json();
+    }
   } catch (err) {
-    console.error('Roll dice service error:', err);
-    throw err;
+    console.warn("Backend offline, loading local leaderboard cache.");
+  }
+  return mergeWithLocalWins(backendData);
+}
+
+function mergeWithLocalWins(backendRecords = []) {
+  const localWins = JSON.parse(localStorage.getItem("greedy_pig_leaderboard") || "[]");
+  
+  // Create a map to combine backend records and local wins seamlessly
+  const map = new Map();
+
+  // Add backend records first
+  for (const row of backendRecords) {
+    const name = (row.name || row.username || "").trim();
+    if (name) {
+      map.set(name.toLowerCase(), {
+        name,
+        username: name,
+        total_victories: Number(row.total_victories ?? row.total_wins ?? 0),
+        total_wins: Number(row.total_victories ?? row.total_wins ?? 0),
+        total_score: Number(row.total_score ?? row.highest_score ?? 0),
+        highest_score: Number(row.highest_score ?? row.total_score ?? 0),
+        avatar: row.avatar || ""
+      });
+    }
+  }
+
+  // Overlay / add local wins (ensuring immediate visibility)
+  for (const local of localWins) {
+    const name = (local.name || local.username || "").trim();
+    if (name) {
+      const existing = map.get(name.toLowerCase());
+      if (existing) {
+        existing.total_victories = Math.max(existing.total_victories, Number(local.total_victories || local.total_wins || 1));
+        existing.total_wins = existing.total_victories;
+        existing.total_score = Math.max(existing.total_score, Number(local.total_score || 0));
+        existing.highest_score = Math.max(existing.highest_score, Number(local.total_score || 0));
+        if (local.avatar) existing.avatar = local.avatar;
+      } else {
+        map.set(name.toLowerCase(), {
+          name,
+          username: name,
+          total_victories: Number(local.total_victories || local.total_wins || 1),
+          total_wins: Number(local.total_victories || local.total_wins || 1),
+          total_score: Number(local.total_score || 0),
+          highest_score: Number(local.total_score || 0),
+          avatar: local.avatar || ""
+        });
+      }
+    }
+  }
+
+  // Ensure default dummy records exist if list is sparse
+  for (const dummy of DEFAULT_DUMMY_LEADERBOARD) {
+    if (!map.has(dummy.name.toLowerCase())) {
+      map.set(dummy.name.toLowerCase(), {
+        name: dummy.name,
+        username: dummy.name,
+        total_victories: dummy.total_victories,
+        total_wins: dummy.total_victories,
+        total_score: dummy.total_score,
+        highest_score: dummy.total_score,
+        avatar: dummy.avatar || ""
+      });
+    }
+  }
+
+  // Sort descending by total victories, then total score
+  return Array.from(map.values()).sort((a, b) => {
+    if (b.total_victories !== a.total_victories) {
+      return b.total_victories - a.total_victories;
+    }
+    return (b.total_score || 0) - (a.total_score || 0);
+  });
+}
+
+export function saveLocalWin(winnerName, score, avatar) {
+  const cleanName = (winnerName || "").trim();
+  if (!cleanName || cleanName.toLowerCase() === "unknown player") return;
+
+  const current = JSON.parse(localStorage.getItem("greedy_pig_leaderboard") || "[]");
+  const existing = current.find(p => (p.name || p.username || "").toLowerCase() === cleanName.toLowerCase());
+  
+  if (existing) {
+    existing.total_victories = (existing.total_victories || existing.total_wins || 0) + 1;
+    existing.total_wins = existing.total_victories;
+    existing.total_score = (existing.total_score || 0) + score;
+    existing.highest_score = Math.max(existing.highest_score || 0, score);
+    if (avatar) existing.avatar = avatar;
+  } else {
+    current.push({
+      id: Date.now(),
+      name: cleanName,
+      username: cleanName,
+      total_victories: 1,
+      total_wins: 1,
+      total_score: score,
+      highest_score: score,
+      avatar: avatar || ""
+    });
+  }
+  
+  localStorage.setItem("greedy_pig_leaderboard", JSON.stringify(current));
+}
+
+export async function getMatchHistory() {
+  try {
+    const res = await fetch(`${API_BASE}/match-history`);
+    if (!res.ok) throw new Error("Backend offline");
+    const data = await res.json();
+    return data.length > 0 ? data : getLocalMatchHistoryFallback();
+  } catch (err) {
+    return getLocalMatchHistoryFallback();
   }
 }
 
-// Bank turn points and check win condition on the server
-export async function holdPoints(gameId) {
-  try {
-    const res = await fetch(`${API_URL}/game/hold`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ gameId }),
-    });
-    if (!res.ok) throw new Error('Failed to hold points on server');
-    return await res.json();
-  } catch (err) {
-    console.error('Hold points service error:', err);
-    throw err;
-  }
+function getLocalMatchHistoryFallback() {
+  return JSON.parse(localStorage.getItem("greedy_pig_match_history") || "[]");
 }
 
-// Compatibility export for GameOver.jsx (calls the server hold/win endpoint)
-export async function recordMatchResult(winnerName, winningScore, playersList, gameId) {
-  try {
-    // If your game uses gameId, this triggers the server-side win recording
-    const res = await fetch(`${API_URL}/game/hold`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ gameId }),
-    });
-    return await res.json();
-  } catch (err) {
-    console.error('Error recording match result:', err);
-  }
+export function saveLocalMatch(matchData) {
+  const current = JSON.parse(localStorage.getItem("greedy_pig_match_history") || "[]");
+  current.unshift({
+    id: Date.now(),
+    date: new Date().toLocaleDateString(),
+    ...matchData
+  });
+  localStorage.setItem("greedy_pig_match_history", JSON.stringify(current.slice(0, 20)));
 }
+
+export const fetchLeaderboard = getLeaderboard;
+export const fetchMatchHistory = getMatchHistory;

@@ -4,7 +4,7 @@ import { migrate } from './src/db/migrate.js';
 import { pool } from './src/db.js';
 
 try {
-  await migrate(); // idempotent; means a fresh deploy "just works"
+  await migrate();
 } catch (err) {
   console.error('Could not prepare the database:', err.message);
   process.exit(1);
