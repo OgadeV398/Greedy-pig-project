@@ -1,5 +1,4 @@
-const API_BASE = "http://localhost:5000/api";
-
+const API_BASE = "https://greedy-pig-backend.onrender.com/";
 const DEFAULT_DUMMY_LEADERBOARD = [
   { id: 1, name: "Oreo", total_victories: 5, total_score: 450, avatar: "" },
   { id: 2, name: "Rosie", total_victories: 3, total_score: 320, avatar: "" },
