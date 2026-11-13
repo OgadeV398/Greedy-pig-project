@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import {
   FiArrowLeft,
@@ -22,7 +22,7 @@ import { getInitialPlayerData } from "src/utils/live_game/getInitialData";
 import AddPlayerButton from "./components/AddPlayerButton";
 import NameInput from "./components/NameInput";
 import ImageSlider from "./components/ImageSlider";
-import SoundSwitch from "src/components/SoundSwitch";
+import { soundManager } from "src/soundManager";
 
 function LiveGameSetup() {
   const {
@@ -46,13 +46,40 @@ function LiveGameSetup() {
   );
 
   const [error, setError] = useState("");
+  const [isAudioMuted, setIsAudioMuted] = useState(soundManager.isMuted);
+
+  // Sync with global accessibility preferences on load
+  useEffect(() => {
+    try {
+      const STORAGE_KEY = "greedy-pig-accessibility";
+      const saved = JSON.parse(localStorage.getItem(STORAGE_KEY) || "null");
+      if (saved && typeof saved.soundEffects === "boolean") {
+        soundManager.isMuted = !saved.soundEffects;
+        setIsAudioMuted(!saved.soundEffects);
+      }
+    } catch (e) {
+      console.warn("Could not read preferences", e);
+    }
+  }, []);
+
+  function handleAudioToggle() {
+    const muted = soundManager.toggleMute();
+    setIsAudioMuted(muted);
+    
+    // Update the global accessibility database so the menus match
+    try {
+      const STORAGE_KEY = "greedy-pig-accessibility";
+      const saved = JSON.parse(localStorage.getItem(STORAGE_KEY) || "{}");
+      saved.soundEffects = !muted;
+      localStorage.setItem(STORAGE_KEY, JSON.stringify(saved));
+    } catch (e) {
+      console.warn("Could not save preferences", e);
+    }
+  }
 
   const playerCount = playerData.length;
-
   const scoreValue = Number(maxPoints);
-
-  const validScore =
-    Number.isInteger(scoreValue) && scoreValue >= 25;
+  const validScore = Number.isInteger(scoreValue) && scoreValue >= 25;
 
   const playerNames = playerData.map((player) =>
     String(player.name ?? "").trim()
@@ -60,16 +87,12 @@ function LiveGameSetup() {
 
   function validateSetup() {
     if (playerCount < 2) {
-      setError(
-        "Add at least two players before starting a game."
-      );
+      setError("Add at least two players before starting a game.");
       return false;
     }
 
     if (!validScore) {
-      setError(
-        "Enter a valid target score of at least 25."
-      );
+      setError("Enter a valid target score of at least 25.");
       return false;
     }
 
@@ -97,9 +120,7 @@ function LiveGameSetup() {
   }
 
   function clearPlayers() {
-    setPlayerData(
-      getInitialPlayerData(pigs, pigPetNames)
-    );
+    setPlayerData(getInitialPlayerData(pigs, pigPetNames));
     setError("");
   }
 
@@ -322,7 +343,7 @@ function LiveGameSetup() {
               </div>
 
               <div className="mt-7 border-t border-white/10 pt-6">
-                <div className="mb-3 flex items-center gap-2">
+                <div className="mb-4 flex items-center gap-2">
                   <FiVolume2
                     className="text-teal-300"
                     size={20}
@@ -333,7 +354,20 @@ function LiveGameSetup() {
                   </h3>
                 </div>
 
-                <SoundSwitch />
+                <button
+                  type="button"
+                  onClick={handleAudioToggle}
+                  className="flex w-full items-center justify-between rounded-xl border border-white/10 bg-[#171222] px-4 py-3 transition hover:border-pink-400/50"
+                  aria-label="Toggle Sound"
+                >
+                  <span className="text-sm font-bold text-slate-300">
+                    Game Audio
+                  </span>
+                  
+                  <div className={`relative inline-flex h-6 w-11 shrink-0 cursor-pointer items-center rounded-full transition-colors duration-200 ease-in-out ${!isAudioMuted ? 'bg-pink-500' : 'bg-slate-600'}`}>
+                    <span className={`inline-block h-4 w-4 transform rounded-full bg-white transition duration-200 ease-in-out ${!isAudioMuted ? 'translate-x-6' : 'translate-x-1'}`} />
+                  </div>
+                </button>
               </div>
             </section>
           </div>

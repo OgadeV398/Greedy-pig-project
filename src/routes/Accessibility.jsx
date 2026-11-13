@@ -17,6 +17,7 @@ import {
   PremiumLayout,
   Panel,
 } from "../components/PremiumLayout";
+import { soundManager } from "../soundManager";
 
 const STORAGE_KEY = "greedy-pig-accessibility";
 
@@ -110,6 +111,9 @@ export default function Accessibility() {
       : "normal";
 
     root.dataset.gpText = settings.textSize;
+
+    // Link the UI preference directly to the audio engine
+    soundManager.isMuted = !settings.soundEffects;
 
     try {
       localStorage.setItem(

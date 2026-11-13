@@ -197,12 +197,7 @@ function LiveGamePage() {
 
   return (
     <main className="bg-[#111111] min-h-screen min-w-full relative z-10 sec-font">
-      <button
-        onClick={handleMuteToggle}
-        className="fixed top-6 right-6 z-50 bg-[#ffffff10] border border-white/10 hover:bg-white/20 text-white font-bold py-2 px-4 rounded-full transition cursor-pointer"
-      >
-        {isMuted ? "🔇 Unmute" : "🔊 Mute"}
-      </button>
+      
 
       <div
         className={`${
