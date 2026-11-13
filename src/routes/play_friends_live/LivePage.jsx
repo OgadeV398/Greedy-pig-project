@@ -3,11 +3,11 @@ import { Outlet } from "react-router-dom";
 import { useGreedyPigContext } from "src/context/useGreedyPigContext";
 import { LiveGameContext } from "src/context/useLiveGameContext";
 import { startGame, rollDice, holdPoints } from "../../services/gameService";
+import { soundManager } from "../../soundManager";
 
 function LiveGamePage() {
   const { preloadSrcList, pigPetNames } = useGreedyPigContext();
   
-  // Ensure distinct names to prevent duplicate user rendering
   const name1 = pigPetNames?.[0] || "Sugar";
   const name2 = pigPetNames?.[1] && pigPetNames[1] !== name1 ? pigPetNames[1] : "Oliver";
   const name3 = pigPetNames?.[2] && pigPetNames[2] !== name1 && pigPetNames[2] !== name2 ? pigPetNames[2] : "Marley";
@@ -29,6 +29,7 @@ function LiveGamePage() {
   const [isRunning, setIsRunning] = useState("?");
   const [diceValue, setDiceValue] = useState(1);
   const [currentPlayer, setCurrentPlayer] = useState(0);
+  const [isMuted, setIsMuted] = useState(false);
 
   useEffect(() => {
     async function initGame() {
@@ -37,7 +38,6 @@ function LiveGamePage() {
         if (session && session.players && session.players.length > 0) {
           setGameId(session.gameId || "local-session");
           
-          // Deduplicate players by name
           const uniqueMap = new Map();
           session.players.forEach((p, i) => {
             const pName = p.name || p.username || initialDefaultPlayers[i]?.name || `Player ${i + 1}`;
@@ -78,6 +78,10 @@ function LiveGamePage() {
 
     if (result && result.players) {
       setDiceValue(result.diceValue);
+      
+      if (result.diceValue === 1) soundManager.play('pigOut');
+      else soundManager.play('roll');
+
       const updatedPlayers = result.players.map((p, idx) => ({
         ...(playerData[idx] || {}),
         ...p,
@@ -90,10 +94,15 @@ function LiveGamePage() {
       
       const hasWinner = updatedPlayers.some(p => p.score >= maxPoints);
       setIsGameOver(result.isGameOver || hasWinner);
+      
+      if (result.isGameOver || hasWinner) soundManager.play('win');
     } else {
       const rolled = Math.floor(Math.random() * 6) + 1;
       setDiceValue(rolled);
       setNumberRolled(rolled);
+
+      if (rolled === 1) soundManager.play('pigOut');
+      else soundManager.play('roll');
 
       setPlayerData((prevPlayers) => {
         const updated = prevPlayers.map(p => ({
@@ -120,6 +129,8 @@ function LiveGamePage() {
 
   const handleHoldPoints = async () => {
     if (isGameOver) return;
+    
+    soundManager.play('hold');
 
     const activePlayerObj = playerData[currentPlayer];
     const projectedScore = (Number(activePlayerObj?.score) || 0) + (Number(activePlayerObj?.runningScore) || 0);
@@ -147,7 +158,9 @@ function LiveGamePage() {
       const hasWinner = updatedPlayers.some(p => p.score >= maxPoints);
       setIsGameOver(result.isGameOver || hasWinner);
 
-      if (!result.isGameOver && !hasWinner) {
+      if (result.isGameOver || hasWinner) {
+        soundManager.play('win');
+      } else {
         setCurrentPlayer(result.currentPlayer ?? currentPlayer);
       }
     } else {
@@ -167,6 +180,7 @@ function LiveGamePage() {
         const hasWinner = updated.some(p => p.score >= maxPoints);
         if (hasWinner || active.score >= maxPoints) {
           setIsGameOver(true);
+          soundManager.play('win');
         } else {
           setCurrentPlayer((prevTurn) => (prevTurn + 1) % updated.length);
         }
@@ -176,8 +190,20 @@ function LiveGamePage() {
     }
   };
 
+  const handleMuteToggle = () => {
+    const muted = soundManager.toggleMute();
+    setIsMuted(muted);
+  };
+
   return (
     <main className="bg-[#111111] min-h-screen min-w-full relative z-10 sec-font">
+      <button
+        onClick={handleMuteToggle}
+        className="fixed top-6 right-6 z-50 bg-[#ffffff10] border border-white/10 hover:bg-white/20 text-white font-bold py-2 px-4 rounded-full transition cursor-pointer"
+      >
+        {isMuted ? "🔇 Unmute" : "🔊 Mute"}
+      </button>
+
       <div
         className={`${
           changeBackground ? " bg-[#D30CBD] blur-[200px] md:blur-[300px] " : diceValue === 1 ? "bg-[#D30C0C] blur-[500px] md:blur-[800px]" : "bg-[#056FA4] blur-[500px] md:blur-[800px]"
