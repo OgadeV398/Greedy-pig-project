@@ -25,7 +25,7 @@ export const config = {
         user: env.DB_USER || 'postgres',
         host: env.DB_HOST || 'localhost',
         database: env.DB_NAME || 'greedy_pig',
-        password: env.DB_PASSWORD,
+        password: env.DB_PASSWORD || 'csc',
         port: Number(env.DB_PORT) || 5432,
       },
 
@@ -46,5 +46,8 @@ export const config = {
     minMaxPoints: 25, // matches min={25} on the Setup screen
     maxMaxPoints: 500,
     defaultMaxPoints: 100,
+    minLevel: 1,
+    maxLevel: 5,
+    defaultLevel: 1,
   },
 };

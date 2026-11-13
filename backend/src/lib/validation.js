@@ -43,6 +43,12 @@ export const startGameSchema = z
       .min(game.minMaxPoints, `Max score must be at least ${game.minMaxPoints}`)
       .max(game.maxMaxPoints, `Max score must be at most ${game.maxMaxPoints}`)
       .default(game.defaultMaxPoints),
+    level: z.coerce
+      .number()
+      .int('Level must be a whole number')
+      .min(game.minLevel, `Level must be at least ${game.minLevel}`)
+      .max(game.maxLevel, `Level must be at most ${game.maxLevel}`)
+      .default(game.defaultLevel),
     // Which seat is the logged-in account? Defaults to seat 0 when a token is sent.
     linkedIndex: z.number().int().min(0).nullish(),
   })

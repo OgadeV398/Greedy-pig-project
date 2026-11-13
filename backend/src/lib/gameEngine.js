@@ -14,9 +14,10 @@ export class GameRuleError extends Error {
   }
 }
 
-export function createGame({ names, maxPoints, linkedIndex = null }) {
+export function createGame({ names, maxPoints, level = 1, linkedIndex = null }) {
   return {
     maxPoints,
+    level,
     currentPlayer: 0,
     status: 'active',
     winnerIndex: null,
@@ -86,6 +87,7 @@ export function applyHold(prev) {
 export function toPublicState(state) {
   return {
     maxPoints: state.maxPoints,
+    level: state.level ?? 1,
     status: state.status,
     currentPlayer: state.currentPlayer,
     winnerIndex: state.winnerIndex,

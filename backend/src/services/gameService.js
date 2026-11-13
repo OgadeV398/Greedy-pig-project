@@ -7,7 +7,7 @@ import { computeGameXp, applyDailyCap, levelFromXp, progressSummary } from '../l
 const rawName = (seat) => (typeof seat === 'string' ? seat : seat.name || seat.tag || '').trim();
 const seatName = (seat, i) => rawName(seat) || `Player ${i + 1}`;
 
-export async function startGame({ players, maxPoints, linkedIndex }, user) {
+export async function startGame({ players, maxPoints, level, linkedIndex }, user) {
   // Logged in and didn't say which seat is theirs -> seat 0. Explicit null = play without XP.
   let linked = linkedIndex === undefined ? (user ? 0 : null) : linkedIndex;
   if (linked != null && !user) {
@@ -19,7 +19,7 @@ export async function startGame({ players, maxPoints, linkedIndex }, user) {
     names[linked] = user.username; // unnamed account seat shows the account name
   }
 
-  const state = createGame({ names, maxPoints, linkedIndex: linked });
+  const state = createGame({ names, maxPoints, level, linkedIndex: linked });
 
   // Housekeeping: abandoned games (2 days) and finished sessions (7 days; match_results keeps the record).
   await query(
@@ -60,7 +60,7 @@ export function advanceGame(gameId, action, user) {
     if (!game) throw new AppError(404, 'GAME_NOT_FOUND', 'Game not found');
     assertCanPlay(game, user);
 
-    const die = action === 'roll' ? rollDie() : null;
+    const die = action === 'roll' ? rollDie(game.state.level ?? 1) : null;
     const { state, outcome } = action === 'roll' ? applyRoll(game.state, die) : applyHold(game.state);
 
     await client.query(

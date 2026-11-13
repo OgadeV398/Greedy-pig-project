@@ -1,16 +1,25 @@
-# Greedy Pig – Backend (Progression: Levels)
+# Greedy Pig – Backend
 
-Express + PostgreSQL API. The **server owns the dice and the scores**, so XP and
-levels can't be faked from the browser.
+Express + PostgreSQL API. The **server owns the dice and the scores**, including
+the selected game difficulty.
 
 ## Run it
 
 ```bash
 cd backend
 npm install
-cp .env.example .env        # then edit DATABASE_URL and JWT_SECRET
 npm run dev                 # http://localhost:5000  (tables are created automatically on boot)
 npm test                    # needs a throwaway DB, see below
+```
+
+Create `.env` in the `backend` directory with your PostgreSQL settings before starting the server:
+
+```env
+DB_USER=postgres
+DB_HOST=localhost
+DB_NAME=greedy_pig
+DB_PASSWORD=your_local_postgres_password
+DB_PORT=5432
 ```
 
 Tests use real Postgres. Create an empty database and point `TEST_DATABASE_URL` at it
@@ -20,7 +29,14 @@ Tests use real Postgres. Create an empty database and point `TEST_DATABASE_URL` 
 TEST_DATABASE_URL=postgres://postgres:pw@localhost:5432/greedy_pig_test npm test
 ```
 
-## How levels work
+## Game difficulty levels
+
+The game setup offers Levels 1–5. Level 1 uses the normal 1-in-6 chance of rolling a 1.
+Each step multiplies that chance by 1.4; the remaining probability is shared equally
+among faces 2–6. The chosen level is saved in the server-side game state, and the server
+uses it for every roll.
+
+## Separate account XP levels
 
 | | |
 |---|---|
@@ -49,8 +65,8 @@ Send `Authorization: Bearer <token>` for logged-in features.
 | POST | `/api/auth/login` | – | `{username, password}` → `{token, player}` |
 | GET | `/api/me` | ✅ | Profile + level/XP progress |
 | GET | `/api/me/xp-history?limit=10` | ✅ | Recent XP awards |
-| GET | `/api/levels` | – | The level ladder (for a "how levels work" screen) |
-| POST | `/api/game/start` | optional | `{players, maxPoints?, linkedIndex?}` → `{game_id, game}` |
+| GET | `/api/levels` | – | The account XP level ladder |
+| POST | `/api/game/start` | optional | `{players, maxPoints?, level?, linkedIndex?}` → `{game_id, game}` |
 | POST | `/api/game/roll` | optional* | `{gameId}` → `{die, outcome, game, progression}` |
 | POST | `/api/game/hold` | optional* | `{gameId}` → `{outcome, game, progression}` |
 | GET | `/api/game/:gameId` | optional* | Resume a game after refresh |
@@ -60,11 +76,12 @@ Send `Authorization: Bearer <token>` for logged-in features.
 \* Required when the game belongs to an account.
 
 **Starting a game.** `players` is an array of names or `{name, tag}` objects (empty names become
-`Player N`). `maxPoints` is 25–500 (default 100; strings like `"100"` are accepted). If a token is
+`Player N`). `maxPoints` is 25–500 (default 100; strings like `"100"` are accepted). `level` is 1–5
+(default 1; strings like `"2"` are accepted). If a token is
 sent, seat `0` belongs to the account unless `linkedIndex` says otherwise (`null` = play without XP).
 Only the linked seat earns XP. Without a token, games are guest games (no XP).
 
-**Game object** (`game`): `{ status: 'active'|'finished', currentPlayer, winnerIndex, lastDie, maxPoints, players: [{name, total_points, running_points, score}] }`
+**Game object** (`game`): `{ status: 'active'|'finished', currentPlayer, winnerIndex, lastDie, maxPoints, level, players: [{name, total_points, running_points, score}] }`
 
 **`outcome`**: `continue` · `bust` (rolled a 1) · `hold` · `win`
 
@@ -100,13 +117,9 @@ Only the linked seat earns XP. Without a token, games are guest games (no XP).
    `CORS_ORIGIN` (your Vercel URL, comma-separated if several).
 4. Free instances sleep when idle: **open `/api/health` a minute before your demo.**
 
-## What the frontend must change (heads-up for whoever owns the UI)
+## Frontend integration
 
-The repo's current frontend plays the game entirely in the browser, so none of this is used yet:
-
-1. `gameService.js`: the base URL is hard-coded to `http://localhost:5000/api`. Use an env var (e.g. `VITE_API_URL`), otherwise the deployed site can't reach the API.
-2. `DiceSection.jsx` rolls and scores locally. It must call `POST /game/start`, then `/game/roll` and `/game/hold`, and render from the returned `game`.
-3. `GameOver.jsx` calls `recordMatchResult`, which posts to `/game/hold` with no `gameId` (now a 400). Delete that call: the server records the match itself.
-4. `Leaderboard.jsx` still queries Supabase directly. Switch it to `fetchLeaderboard()`.
-5. New UI: login/register, level badge + XP bar from `/me`, and a level-up / "+XP" screen from `progression`.
-6. Send the token on game requests so XP is credited.
+The local game setup offers Levels 1–5 and sends the selected level when starting a match.
+The API base URL in `src/services/gameService.js` is still `http://localhost:5000/api`;
+configure it for your deployment before hosting the frontend. The browser falls back to local
+dice if the API is unavailable, so the selected difficulty is enforced only for server-backed games.

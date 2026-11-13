@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState } from "react";
 import { Outlet } from "react-router-dom";
 import { useGreedyPigContext } from "src/context/useGreedyPigContext";
 import { LiveGameContext } from "src/context/useLiveGameContext";
@@ -21,6 +21,7 @@ function LiveGamePage() {
   const [gameId, setGameId] = useState("local-session");
   const [playerData, setPlayerData] = useState(initialDefaultPlayers);
   const [maxPoints, setMaxPoints] = useState(100);
+  const [gameLevel, setGameLevel] = useState(1);
   const [gameHistory, setGameHistory] = useState([]);
   const [numberRolled, setNumberRolled] = useState(0);
   const [changeBackground, setChangeBackground] = useState(false);
@@ -31,40 +32,16 @@ function LiveGamePage() {
   const [currentPlayer, setCurrentPlayer] = useState(0);
   const [isMuted, setIsMuted] = useState(false);
 
-  useEffect(() => {
-    async function initGame() {
-      try {
-        const session = await startGame(initialDefaultPlayers);
-        if (session && session.players && session.players.length > 0) {
-          setGameId(session.gameId || "local-session");
-          
-          const uniqueMap = new Map();
-          session.players.forEach((p, i) => {
-            const pName = p.name || p.username || initialDefaultPlayers[i]?.name || `Player ${i + 1}`;
-            if (!uniqueMap.has(pName.toLowerCase())) {
-              uniqueMap.set(pName.toLowerCase(), {
-                id: p.id || i + 1,
-                name: pName,
-                avatar: p.avatar || preloadSrcList?.[i] || initialDefaultPlayers[i]?.avatar || "",
-                score: Number(p.score ?? p.totalScore ?? 0),
-                runningScore: Number(p.runningScore ?? p.currentScore ?? 0),
-              });
-            }
-          });
-
-          const cleanedPlayers = Array.from(uniqueMap.values());
-          if (cleanedPlayers.length > 0) {
-            setPlayerData(cleanedPlayers);
-          }
-          setMaxPoints(Number(session.targetScore) || 100);
-        }
-      } catch (err) {
-        console.warn("Backend offline, using local fallback session.");
-      }
-    }
-
-    initGame();
-  }, [preloadSrcList, pigPetNames]);
+  const startNewGame = async ({ players, targetScore, level }) => {
+    const session = await startGame(players, targetScore, level);
+    setGameId(session.gameId || "local-session");
+    setPlayerData(session.players?.length ? session.players : players);
+    setMaxPoints(Number(session.targetScore) || Number(targetScore));
+    setGameLevel(Number(session.level) || Number(level));
+    setCurrentPlayer(0);
+    setIsGameOver(false);
+    setDiceValue(1);
+  };
 
   const handleRollDice = async () => {
     if (isGameOver) return;
@@ -97,7 +74,8 @@ function LiveGamePage() {
       
       if (result.isGameOver || hasWinner) soundManager.play('win');
     } else {
-      const rolled = Math.floor(Math.random() * 6) + 1;
+      const oneChance = (1 / 6) * 1.4 ** (gameLevel - 1);
+      const rolled = Math.random() < oneChance ? 1 : Math.floor(Math.random() * 5) + 2;
       setDiceValue(rolled);
       setNumberRolled(rolled);
 
@@ -213,6 +191,9 @@ function LiveGamePage() {
           setPlayerData,
           maxPoints,
           setMaxPoints,
+          gameLevel,
+          setGameLevel,
+          startNewGame,
           gameHistory,
           setGameHistory,
           numberRolled,

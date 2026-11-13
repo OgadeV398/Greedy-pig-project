@@ -154,10 +154,13 @@ test('turn order: roll, bust passes the turn, hold banks and passes', async () =
 
 test('game state can be fetched to resume, and hides server internals', async () => {
   scriptDice(3);
-  const g = (await startGame()).body.game_id;
+  const started = await startGame(undefined, { level: 4 });
+  const g = started.body.game_id;
+  assert.equal(started.body.game.level, 4);
   await roll(g);
   const got = await api('GET', `/api/game/${g}`);
   assert.equal(got.status, 200);
+  assert.equal(got.body.game.level, 4);
   assert.equal(got.body.game.players[0].running_points, 3);
   assert.equal('rolls' in got.body.game, false);
 });
@@ -311,6 +314,11 @@ test('start-game validation', async () => {
   const strMax = await post({ players: ['a', 'b'], maxPoints: '100' }); // UI sends strings
   assert.equal(strMax.status, 201);
   assert.equal(strMax.body.game.maxPoints, 100);
+  assert.equal(strMax.body.game.level, 1);
+  assert.equal((await post({ players: ['a', 'b'], level: '5' })).body.game.level, 5);
+  assert.equal((await post({ players: ['a', 'b'], level: 0 })).status, 400);
+  assert.equal((await post({ players: ['a', 'b'], level: 6 })).status, 400);
+  assert.equal((await post({ players: ['a', 'b'], level: 2.5 })).status, 400);
   const dflt = await post({ players: ['a', 'b'] });
   assert.equal(dflt.body.game.maxPoints, 100);
 

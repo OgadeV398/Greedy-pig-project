@@ -29,6 +29,9 @@ function LiveGameSetup() {
     playerData,
     maxPoints,
     setMaxPoints,
+    gameLevel,
+    setGameLevel,
+    startNewGame,
     setPlayerData,
     setDiceValue,
     setIsGameOver,
@@ -84,6 +87,7 @@ function LiveGameSetup() {
   const playerNames = playerData.map((player) =>
     String(player.name ?? "").trim()
   );
+  const oneChancePercent = ((100 / 6) * 1.4 ** (gameLevel - 1)).toFixed(1);
 
   function validateSetup() {
     if (playerCount < 2) {
@@ -100,16 +104,23 @@ function LiveGameSetup() {
     return true;
   }
 
-  function setupPlayers(resume) {
+  async function setupPlayers(resume) {
     if (!resume) {
       if (!validateSetup()) return;
 
       const newPlayerData = playerData.map((player) => ({
         ...player,
+        score: 0,
+        runningScore: 0,
         running_points: 0,
         total_points: 0,
       }));
 
+      await startNewGame({
+        players: newPlayerData,
+        targetScore: scoreValue,
+        level: gameLevel,
+      });
       setDiceValue(0);
       setIsGameOver(false);
       setCurrentPlayer(0);
@@ -342,6 +353,32 @@ function LiveGameSetup() {
                 />
               </div>
 
+              <div className="mt-6">
+                <h3 className="mb-2 text-sm font-bold text-white">
+                  Dice Difficulty
+                </h3>
+                <p className="mb-4 text-xs leading-5 text-slate-400">
+                  Each level increases the chance of rolling a 1.
+                </p>
+                <div className="grid grid-cols-2 gap-3 sm:grid-cols-5">
+                  {[1, 2, 3, 4, 5].map((level) => (
+                    <button
+                      key={level}
+                      type="button"
+                      onClick={() => setGameLevel(level)}
+                      aria-pressed={gameLevel === level}
+                      className={`rounded-xl border px-4 py-3 text-sm font-bold transition ${
+                        gameLevel === level
+                          ? "border-pink-400 bg-pink-500/20 text-pink-200"
+                          : "border-white/10 bg-white/5 text-slate-300 hover:border-white/25"
+                      }`}
+                    >
+                      Level {level}
+                    </button>
+                  ))}
+                </div>
+              </div>
+
               <div className="mt-7 border-t border-white/10 pt-6">
                 <div className="mb-4 flex items-center gap-2">
                   <FiVolume2
@@ -413,6 +450,13 @@ function LiveGameSetup() {
 
                   <span className="text-sm font-bold text-pink-300">
                     {validScore ? scoreValue : "Not set"}
+                  </span>
+                </div>
+
+                <div className="flex items-center justify-between border-b border-white/10 pb-4">
+                  <span className="text-sm text-slate-400">Difficulty</span>
+                  <span className="text-sm font-bold text-pink-300">
+                    Level {gameLevel}
                   </span>
                 </div>
 

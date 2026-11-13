@@ -9,28 +9,36 @@ const DEFAULT_DUMMY_LEADERBOARD = [
   { id: 6, name: "Esmeralda", total_victories: 1, total_score: 150, avatar: "" }
 ];
 
-export async function startGame(players, targetScore = 100) {
+export async function startGame(players, targetScore = 100, level = 1) {
   try {
     const res = await fetch(`${API_BASE}/game/start`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ players, targetScore }),
+      body: JSON.stringify({ players, maxPoints: targetScore, level }),
     });
     if (!res.ok) throw new Error("Backend offline");
     const data = await res.json();
+    const game = data.game || data.gameState || {};
 
     return {
-      gameId: data.gameId,
-      targetScore: data.gameState?.targetScore || targetScore,
-      players: data.gameState?.players || data.players || [],
+      gameId: data.game_id || data.gameId,
+      targetScore: game.maxPoints || game.targetScore || targetScore,
+      level: game.level || level,
+      players: game.players?.map((player, index) => ({
+        ...(players[index] || {}),
+        ...player,
+        score: Number(player.total_points ?? player.score ?? 0),
+        runningScore: Number(player.running_points ?? player.runningScore ?? 0),
+      })) || players,
     };
   } catch (err) {
     return {
       gameId: "local-session-" + Date.now(),
       targetScore,
+      level,
       players: players.map((p, i) => ({
         id: i + 1,
-        name: p.name || `Player ${i + 1}`,
+        name: (typeof p === "string" ? p : p.name) || `Player ${i + 1}`,
         avatar: p.avatar || "",
         score: 0,
         runningScore: 0
@@ -47,17 +55,17 @@ export async function rollDice(gameId) {
   });
   if (!res.ok) throw new Error("Backend offline");
   const data = await res.json();
-  const state = data.gameState || data;
+  const state = data.game || data.gameState || data;
 
   return {
-    diceValue: data.diceRoll ?? data.diceValue,
+    diceValue: data.die ?? data.diceRoll ?? data.diceValue,
     players: state.players?.map(p => ({
       ...p,
-      score: Number(p.totalScore ?? p.score ?? 0),
-      runningScore: Number(p.turnScore ?? p.runningScore ?? 0),
+      score: Number(p.total_points ?? p.totalScore ?? p.score ?? 0),
+      runningScore: Number(p.running_points ?? p.turnScore ?? p.runningScore ?? 0),
     })),
-    currentPlayer: state.currentPlayerIndex ?? state.currentPlayer ?? 0,
-    isGameOver: state.isGameOver ?? false,
+    currentPlayer: state.currentPlayer ?? state.currentPlayerIndex ?? 0,
+    isGameOver: state.status ? state.status === "finished" : state.isGameOver ?? false,
   };
 }
 
@@ -69,18 +77,18 @@ export async function holdPoints(gameId, payload = {}) {
   });
   if (!res.ok) throw new Error("Backend offline");
   const data = await res.json();
-  const state = data.gameState || data;
+  const state = data.game || data.gameState || data;
 
   return {
     ...data,
     gameState: state,
     players: state?.players?.map(p => ({
       ...p,
-      score: Number(p.totalScore ?? p.score ?? 0),
-      runningScore: Number(p.turnScore ?? p.runningScore ?? 0),
+      score: Number(p.total_points ?? p.totalScore ?? p.score ?? 0),
+      runningScore: Number(p.running_points ?? p.turnScore ?? p.runningScore ?? 0),
     })),
-    currentPlayer: state?.currentPlayerIndex ?? state?.currentPlayer ?? 0,
-    isGameOver: state?.isGameOver ?? Boolean(data.success),
+    currentPlayer: state?.currentPlayer ?? state?.currentPlayerIndex ?? 0,
+    isGameOver: state?.status ? state.status === "finished" : state?.isGameOver ?? Boolean(data.success),
   };
 }
 

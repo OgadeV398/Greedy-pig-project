@@ -82,6 +82,12 @@ test('the engine never mutates the state it was given', () => {
   assert.deepEqual(before, snapshot);
 });
 
+test('the game state retains the selected difficulty level', () => {
+  const state = createGame({ names: ['A', 'B'], maxPoints: 50, level: 4 });
+  assert.equal(state.level, 4);
+  assert.equal(toPublicState(state).level, 4);
+});
+
 test('public state uses the frontend field names and hides internals', () => {
   const pub = toPublicState(applyRoll(fresh(), 3).state);
   assert.deepEqual(pub.players[0], { name: 'A', total_points: 0, running_points: 3, score: 3 });
