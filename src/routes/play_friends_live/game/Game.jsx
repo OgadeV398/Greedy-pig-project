@@ -7,7 +7,7 @@ import StatsSection from "./components/StatsSection";
 import GameOver from "./GameOver";
 
 export default function Game() {
-  const { isGameOver, playerData, currentPlayer, maxPoints } = useContext(LiveGameContext);
+  const { isGameOver, playerData, currentPlayer, maxPoints, gameLevel } = useContext(LiveGameContext);
   const navigate = useNavigate();
 
   return (
@@ -26,6 +26,10 @@ export default function Game() {
           <div className="bg-white/10 px-6 py-3 rounded-2xl text-center border border-white/10">
             <span className="text-xs uppercase tracking-wider text-white/60 block">Target Score</span>
             <span className="text-2xl font-black text-pink-400">{maxPoints}</span>
+          </div>
+          <div className="bg-white/10 px-6 py-3 rounded-2xl text-center border border-white/10">
+            <span className="text-xs uppercase tracking-wider text-white/60 block">Difficulty</span>
+            <span className="text-2xl font-black text-pink-400">Level {gameLevel}</span>
           </div>
           <button
             onClick={() => navigate("/")}
