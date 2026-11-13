@@ -1,7 +1,7 @@
 import React, { useEffect, useState } from "react";
 import { useLiveGameContext } from "src/context/useLiveGameContext";
 import { IoMdMore } from "react-icons/io";
-import selectSound from 'src/sound_effect/remove_player.mp3'
+const selectSound = "/sound_effect/remove_player.mp3";
 import useAudio from "src/hooks/useAudio";
 
 export default function NameInput({ player,index }) {

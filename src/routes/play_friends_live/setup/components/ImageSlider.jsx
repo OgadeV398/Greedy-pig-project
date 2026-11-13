@@ -1,7 +1,7 @@
 import React, { useState } from "react";
 import { IoIosArrowForward, IoIosArrowBack } from "react-icons/io";
 import { useLiveGameContext } from "src/context/useLiveGameContext";
-import selectSound from 'src/sound_effect/selection_button.mp3'
+const selectSound = "/sound_effect/selection_button.mp3";
 import useAudio from "src/hooks/useAudio";
 import { useGreedyPigContext } from "src/context/useGreedyPigContext";
 
