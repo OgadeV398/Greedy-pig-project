@@ -3,9 +3,11 @@
 - **Live Demo:** [- **Live Demo:** [https://greedy-pig-frontend.onrender.com]
 
 ## Project Team - Group 2
-* **Chimdindu Joseph Okorafor** - 23120111045
+* **Chimdindu Joseph Okorafor** - 23120111045 HEAD
 * **Catherine Okoede** - 23120111042
 * **Jeremiah Oladele** - 24120111114
+* **Kufre Etuk** - 23120111020
+
 
 A fast-paced multiplayer push-your-luck dice game built using React, Vite, Tailwind CSS, a secure Node.js/Express backend API, and a PostgreSQL database.
 
